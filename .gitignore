@@ -1,1 +1,4 @@
 .DS_Store
+zsh/oh-my-zsh/plugins/zsh-autosuggestions/
+zsh/oh-my-zsh/plugins/zsh-syntax-highlighting/
+zsh/oh-my-zsh/themes/powerlevel10k/
