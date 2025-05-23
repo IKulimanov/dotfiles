@@ -1,0 +1,7 @@
+[user]
+	name = Ivan Kulimanov
+	email = ikulimanov@nurtelecom.kg
+[core]
+	autocrlf = input
+[init]
+	defaultBranch = master
