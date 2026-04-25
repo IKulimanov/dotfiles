@@ -1,0 +1,54 @@
+[user]
+	name = Ivan Kulimanov
+	email = ikulimanov@nurtelecom.kg
+
+[core]
+	autocrlf = input
+	# delta как pager для красивых диффов (если установлен)
+	pager = delta --dark 2>/dev/null || less
+
+[init]
+	defaultBranch = main
+
+[pull]
+	rebase = true              # pull --rebase по умолчанию
+
+[push]
+	autoSetupRemote = true     # push новой ветки без -u
+	default = current
+
+[fetch]
+	prune = true               # удалять мёртвые remote-ветки при fetch
+
+[merge]
+	conflictstyle = zdiff3     # показывать base при конфликтах
+
+[diff]
+	algorithm = histogram      # лучший алгоритм диффов
+	colorMoved = default       # подсвечивать перемещённый код
+
+[rebase]
+	autoStash = true           # stash перед rebase, unstash после
+
+[rerere]
+	enabled = true             # запоминать решения конфликтов
+
+[interactive]
+	diffFilter = delta --color-only 2>/dev/null || cat
+
+[delta]
+	navigate = true
+	side-by-side = true
+	line-numbers = true
+
+[alias]
+	co = checkout
+	br = branch
+	ci = commit
+	st = status
+	lg = log --oneline --graph --decorate -20
+	undo = reset --soft HEAD~1
+	amend = commit --amend --no-edit
+	wip = !git add -A && git commit -m 'wip'
+	branches = branch -a --sort=-committerdate
+	stashes = stash list

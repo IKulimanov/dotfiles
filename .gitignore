@@ -1,4 +1,8 @@
 .DS_Store
-zsh/oh-my-zsh/plugins/zsh-autosuggestions/
-zsh/oh-my-zsh/plugins/zsh-syntax-highlighting/
-zsh/oh-my-zsh/themes/powerlevel10k/
+
+# Oh-My-Zsh и плагины — устанавливаются динамически через install.sh
+zsh/.config/zsh/oh-my-zsh/
+# История zsh
+zsh/.config/zsh/.zsh_history
+# Локальные переопределения
+zsh/.config/zsh/.zshrc.local
