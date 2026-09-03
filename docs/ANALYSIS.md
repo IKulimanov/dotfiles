@@ -33,8 +33,8 @@
 
 ```ini
 [user]
-	name = Ivan Kulimanov
-	email = ikulimanov@nurtelecom.kg
+	name = Ivan K.
+	email = work@example.com
 ```
 
 Это глобальный конфиг → **любой** репозиторий на машине, включая личные и опенсорс, коммитится
@@ -47,19 +47,19 @@
 ```ini
 # ~/.config/git/config
 [user]
-	name = Ivan Kulimanov
-	email = ivan.kulimanov@gmail.com        # дефолт — личный
+	name = Ivan K.
+	email = personal@example.com        # дефолт — личный
 
 [includeIf "gitdir:~/work/"]
 	path = config.work                       # перекрывает user.email внутри ~/work/
-[includeIf "gitdir:~/src/nurtelecom/"]
+[includeIf "gitdir:~/src/company/"]
 	path = config.work
 ```
 
 ```ini
 # ~/.config/git/config.work  (в репозиторий не коммитить — или коммитить без секретов)
 [user]
-	email = ikulimanov@nurtelecom.kg
+	email = work@example.com
 [commit]
 	gpgsign = true
 ```

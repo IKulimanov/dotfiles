@@ -1,11 +1,15 @@
-[user]
-	name = Ivan Kulimanov
-	email = ikulimanov@nurtelecom.kg
+# ─────────────────────────────────────────────────────────────
+#  Личные данные (имя, почта) СОЗНАТЕЛЬНО не хранятся в этом файле.
+#  Их создаёт install.sh в ~/.config/git/identity — он не в git.
+#  Там же живут правила includeIf для рабочих аккаунтов.
+#  Пересоздать: ./install.sh  (шаг «Git: идентичности»)
+# ─────────────────────────────────────────────────────────────
+[include]
+	path = identity
 
 [core]
 	autocrlf = input
-	# delta как pager для красивых диффов (если установлен)
-	pager = delta --dark 2>/dev/null || less
+	pager = delta
 
 [init]
 	defaultBranch = main
@@ -16,6 +20,7 @@
 [push]
 	autoSetupRemote = true     # push новой ветки без -u
 	default = current
+	followTags = true          # аннотированные теги уезжают вместе с коммитами
 
 [fetch]
 	prune = true               # удалять мёртвые remote-ветки при fetch
@@ -32,11 +37,25 @@
 
 [rerere]
 	enabled = true             # запоминать решения конфликтов
+	autoUpdate = true          # и сразу применять их
+
+[column]
+	ui = auto                  # branch/status в колонки
+
+[branch]
+	sort = -committerdate      # свежие ветки сверху
+
+[tag]
+	sort = version:refname
+
+[help]
+	autocorrect = prompt       # спросить, а не выполнить молча
 
 [interactive]
-	diffFilter = delta --color-only 2>/dev/null || cat
+	diffFilter = delta --color-only
 
 [delta]
+	dark = true
 	navigate = true
 	side-by-side = true
 	line-numbers = true
@@ -52,3 +71,13 @@
 	wip = !git add -A && git commit -m 'wip'
 	branches = branch -a --sort=-committerdate
 	stashes = stash list
+	# что накопилось в ветке относительно main
+	up = log --oneline --graph main..HEAD
+	# ветки, чей upstream удалён
+	gone = "!git fetch -p && git branch -vv | awk '/: gone]/{print $1}'"
+	# чей это код
+	who = shortlog -sne --
+	# найти коммит по изменённой строке
+	pickaxe = log -S
+	# какой идентичностью подписан текущий репозиторий
+	whoami = "!f(){ printf '%s <%s>\\n' \"$(git config user.name)\" \"$(git config user.email)\"; }; f"

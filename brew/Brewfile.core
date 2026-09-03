@@ -1,0 +1,36 @@
+# ╔══════════════════════════════════════════════════════════════╗
+# ║  Базовый набор: то, на что опирается конфиг шелла и git.      ║
+# ║  brew bundle --file=brew/Brewfile.core                        ║
+# ╚══════════════════════════════════════════════════════════════╝
+
+# ---------- обязательное для самих dotfiles ----------
+brew "gnu-stow"     # симлинк-менеджер, которым ставятся конфиги
+
+# Шрифт — НЕ опционален: .p10k.zsh собран в режиме nerdfont-v3,
+# и eza --icons тоже рисует глифы. Без него в терминале квадраты.
+# После установки выбрать в iTerm2: Profiles → Text → Font → MesloLGS NF
+cask "font-meslo-lg-nerd-font"
+
+# ---------- CLI ----------
+brew "bat"          # cat с подсветкой синтаксиса
+brew "eza"          # современная замена ls
+brew "ripgrep"      # быстрый поиск по содержимому
+brew "fd"           # быстрый поиск файлов по имени
+brew "fzf"          # fuzzy finder (Ctrl+R, Ctrl+T, Alt+C)
+brew "zoxide"       # умный cd — z <часть имени>
+brew "jq"           # JSON в командной строке
+brew "htop"         # мониторинг процессов
+brew "tldr"         # краткие примеры вместо man
+brew "trash"        # удаление в Корзину (обратимое) вместо rm -i
+
+# ---------- разработка ----------
+brew "neovim"
+brew "gh"           # GitHub CLI
+brew "git-delta"    # диффы side-by-side с подсветкой
+brew "lazygit"      # TUI для git
+brew "direnv"       # авто-загрузка .envrc
+
+# mise — версии Go / Node / Python по каталогу.
+# Пришёл на замену rbenv, который висел в конфиге, хотя Ruby не используется.
+# Не нужен — удалите строку и уберите activate из conf.d/20-tools.zsh.
+brew "mise"

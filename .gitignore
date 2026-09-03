@@ -1,8 +1,11 @@
 .DS_Store
 
-# Oh-My-Zsh и плагины — устанавливаются динамически через install.sh
+# Oh-My-Zsh и плагины — ставятся динамически через install.sh
 zsh/.config/zsh/oh-my-zsh/
-# История zsh
+
+# Подстраховка: состояние и секреты не должны попадать в репозиторий.
+# По-хорошему их здесь и не бывает — история живёт в $XDG_STATE_HOME,
+# а идентичности git в ~/.config/git/identity* (см. install.sh).
 zsh/.config/zsh/.zsh_history
-# Локальные переопределения
-zsh/.config/zsh/.zshrc.local
+zsh/.config/zsh/*.local
+git/.config/git/identity*
