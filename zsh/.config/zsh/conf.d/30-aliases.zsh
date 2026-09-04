@@ -15,10 +15,17 @@ alias mv="mv -i"
 alias cp="cp -i"
 
 # ── git ────────────────────────────────────────────────────────
+# Интерактивные команды (fzf) даёт плагин forgit:
+#   glo  лог с превью        gd   diff по файлам       gcb  переключить ветку
+#   ga   add по файлам       gcf  откатить файл        gss  stash
+#   gbl  blame               grh  reset HEAD по файлам gclean  удалить untracked
+# Остальное — алиасы git из git/.config/git/config: git lg, lga, ll, bra, bl, msg…
 alias g="git"
-alias gs="git status"
-alias gd="git diff"
-alias gl="git log --oneline --graph -20"
+alias gs="git status -sb"
+alias gl="git lg"           # граф: хеш, дата, автор, ветки, сообщение
+alias gla="git lga"         # то же по всем веткам
+alias gb="git bra"          # ветки: когда, кто, что
+alias lg="lazygit"
 # какой идентичностью подписан текущий репозиторий (личной или рабочей)
 alias gw="git whoami"
 
@@ -31,5 +38,5 @@ alias path='echo $PATH | tr ":" "\n"'
 alias reload='exec zsh'
 command -v nvim &>/dev/null && alias vim="nvim"
 
-# Быстрый доступ к самим dotfiles
-alias dot='cd "${DOTFILES:-$HOME/.dotfiles}"'
+# Быстрый доступ к самим dotfiles ($DOTFILES вычисляется в .zshenv)
+alias dot='cd "${DOTFILES:-$HOME/dotfiles}"'

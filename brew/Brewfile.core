@@ -4,7 +4,8 @@
 # ╚══════════════════════════════════════════════════════════════╝
 
 # ---------- обязательное для самих dotfiles ----------
-brew "gnu-stow"     # симлинк-менеджер, которым ставятся конфиги
+brew "stow"         # GNU Stow — симлинк-менеджер, которым ставятся конфиги
+                    # (формула называется именно stow, не gnu-stow)
 
 # Шрифт — НЕ опционален: .p10k.zsh собран в режиме nerdfont-v3,
 # и eza --icons тоже рисует глифы. Без него в терминале квадраты.
@@ -24,10 +25,14 @@ brew "tldr"         # краткие примеры вместо man
 brew "trash"        # удаление в Корзину (обратимое) вместо rm -i
 
 # ---------- разработка ----------
+brew "git"          # свежий git вместо системного 2.39 (Apple)
 brew "neovim"
+brew "tree-sitter-cli" # нужен nvim-treesitter (ветка main) для сборки парсеров
 brew "gh"           # GitHub CLI
 brew "git-delta"    # диффы side-by-side с подсветкой
-brew "lazygit"      # TUI для git
+brew "lazygit"      # TUI для git: стейджинг, ветки, rebase, конфиг в lazygit/
+brew "tig"          # история, blame и ветки в консоли, конфиг в tig/
+brew "shellcheck"   # проверка shell-скриптов (make lint)
 brew "direnv"       # авто-загрузка .envrc
 
 # mise — версии Go / Node / Python по каталогу.

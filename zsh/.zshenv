@@ -28,3 +28,8 @@ export EDITOR=nvim
 export VISUAL=nvim
 export PAGER=less
 export LESS='-R -F -X'
+
+# --- Где лежат сами dotfiles ---
+# Вычисляется из симлинка ~/.zshenv → <репозиторий>/zsh/.zshenv,
+# поэтому репозиторий можно клонировать куда угодно. Алиас: dot
+[[ -L "$HOME/.zshenv" ]] && export DOTFILES="${${:-$HOME/.zshenv}:A:h:h}"

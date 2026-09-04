@@ -3,22 +3,29 @@
 # не сделан ли он уже, и спрашивает подтверждение.
 #
 #   ./install.sh              обычный интерактивный запуск
+#   ./install.sh --check      только проверить, что установлено, ничего не менять
 #   ./install.sh --dry-run    показать, что будет сделано, ничего не меняя
 #   ./install.sh --yes        не задавать вопросов (для новой машины)
 set -euo pipefail
 
-DOTFILES="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+DOTFILES="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd -P)"
 XDG_CONFIG="${XDG_CONFIG_HOME:-$HOME/.config}"
 XDG_STATE="${XDG_STATE_HOME:-$HOME/.local/state}"
-PACKAGES=(zsh git nvim)
+PACKAGES=(zsh git nvim lazygit tig)
+ZSH_DIR="$XDG_CONFIG/zsh/oh-my-zsh"
+IDENTITY="$XDG_CONFIG/git/identity"
+# .DS_Store не должен становиться симлинком, даже если Finder его создал
+STOW_OPTS=(--no-folding --ignore='\.DS_Store')
 
 ASSUME_YES=0
 DRY_RUN=0
+CHECK_ONLY=0
 for arg in "$@"; do
   case "$arg" in
-    --yes|-y)    ASSUME_YES=1 ;;
+    --yes|-y)     ASSUME_YES=1 ;;
     --dry-run|-n) DRY_RUN=1 ;;
-    --help|-h)   sed -n '2,8p' "$0"; exit 0 ;;
+    --check|-c)   CHECK_ONLY=1 ;;
+    --help|-h)    sed -n '2,9p' "$0"; exit 0 ;;
     *) echo "Неизвестный аргумент: $arg" >&2; exit 2 ;;
   esac
 done
@@ -62,16 +69,112 @@ askval() {
   printf '%s' "${answer:-$default}"
 }
 
-# Спрашивает, пока не получит непустой ответ
+# Спрашивает, пока не получит непустой ответ.
+# ВАЖНО: результат забирают через $(askreq …), поэтому в stdout не должно
+# попасть ничего, кроме самого значения. Приглашения и предупреждения —
+# только в /dev/tty, иначе их текст окажется в имени или почте.
 askreq() {
   local v=""
   while [[ -z "$v" ]]; do
     v="$(askval "$1" "${2:-}")"
-    [[ -z "$v" ]] && warn "Значение обязательно."
-    [[ ! -e /dev/tty ]] && break
+    [[ -n "$v" ]] && break
+    # Спрашивать бесконечно можно только там, где есть кому отвечать.
+    # В --dry-run и без терминала askval сразу возвращает пустое значение,
+    # и цикл крутился бы вечно.
+    if (( DRY_RUN )) || [[ ! -e /dev/tty ]]; then break; fi
+    warn "Значение обязательно." > /dev/tty
   done
   printf '%s' "$v"
 }
+
+# Значение для конфига git: одна строка, без управляющих символов.
+# Многострочное значение даёт «fatal: bad config line N» на каждой команде git.
+oneline() { printf '%s' "$1" | tr -d '\r\n\033' | sed 's/^[[:space:]]*//; s/[[:space:]]*$//'; }
+
+# Файл считается «нашим», если это симлинк внутрь каталога dotfiles.
+# stow пишет относительные ссылки (dotfiles/zsh/.zshenv, ../../dotfiles/…),
+# поэтому сравниваем не текст ссылки, а разрешённый путь.
+is_ours() {
+  [[ -L "$1" ]] || return 1
+  local link target; link="$(readlink "$1")"
+  [[ "$link" == /* ]] || link="$(dirname "$1")/$link"
+  target="$(cd "$(dirname "$link")" 2>/dev/null && pwd -P)/$(basename "$link")"
+  [[ "$target" == "$DOTFILES"/* ]]
+}
+
+# ═══════════════════════════════════════════════════════════════
+#  Проверка: что установлено, что подключено, чего не хватает.
+#  Запускается в конце установки и отдельно: ./install.sh --check
+# ═══════════════════════════════════════════════════════════════
+check_all() {
+  local fails=0
+  pass() { ok "$1"; }
+  fail() { err "$1"; [[ -n "${2:-}" ]] && printf "      ${YELLOW}→${NC} %s\n" "$2"; fails=$((fails + 1)); }
+
+  header "Проверка"
+
+  # инструменты
+  local t
+  for t in brew stow git nvim delta lazygit tig fzf fd bat eza zoxide; do
+    if command -v "$t" &>/dev/null; then pass "$t"; else fail "$t не найден" "make core"; fi
+  done
+  if command -v git &>/dev/null && [[ "$(command -v git)" == /usr/bin/git ]]; then
+    warn "git — системный ($(git --version | awk '{print $3}')); brew-версия встанет впереди после exec zsh"
+  fi
+  if compgen -G "$HOME/Library/Fonts/MesloLGSNerdFont*" >/dev/null || compgen -G "/Library/Fonts/MesloLGSNerdFont*" >/dev/null; then
+    pass "шрифт MesloLGS Nerd Font"
+  else
+    fail "шрифт MesloLGS Nerd Font не установлен" "make core, затем выбрать его в iTerm2"
+  fi
+
+  # симлинки
+  local pkg rel missing
+  for pkg in "${PACKAGES[@]}"; do
+    missing=""
+    while IFS= read -r rel; do
+      is_ours "$HOME/$rel" || missing="$missing $rel"
+    done < <(cd "$DOTFILES/$pkg" && find . \( -type f -o -type l \) ! -name .DS_Store | sed 's|^\./||')
+    if [[ -z "$missing" ]]; then pass "пакет $pkg подключён"; else fail "пакет $pkg: не подключено:$missing" "make relink"; fi
+  done
+
+  # zsh
+  check_dir() {   # каталог, название, что делать если нет
+    if [[ -d "$1" ]]; then pass "$2"; else fail "$2: не установлен" "${3:-./install.sh → шаг Zsh}"; fi
+  }
+  check_dir "$ZSH_DIR"                                       "oh-my-zsh"
+  check_dir "$ZSH_DIR/custom/themes/powerlevel10k"           "тема powerlevel10k"
+  check_dir "$ZSH_DIR/custom/plugins/zsh-autosuggestions"    "zsh-autosuggestions"
+  check_dir "$ZSH_DIR/custom/plugins/zsh-syntax-highlighting" "zsh-syntax-highlighting"
+  check_dir "$ZSH_DIR/custom/plugins/forgit"                 "forgit"
+  if [[ -f "$HOME/.zshrc" && ! -L "$HOME/.zshrc" ]] && grep -q 'Path to your Oh My Zsh installation' "$HOME/.zshrc" 2>/dev/null; then
+    # shellcheck disable=SC2088  # ~ здесь просто текст сообщения, не путь
+    fail "~/.zshrc — шаблон от установщика Oh-My-Zsh, он не используется (ZDOTDIR=~/.config/zsh)" "./install.sh уберёт его в бэкап"
+  fi
+  if [[ "$SHELL" == */zsh ]]; then
+    pass "шелл по умолчанию: zsh"
+  else
+    fail "шелл по умолчанию: $SHELL" "chsh -s \$(which zsh)"
+  fi
+
+  # git
+  if [[ ! -f "$IDENTITY" ]]; then
+    fail "git identity не настроена — коммиты подпишутся именем машины" "make identity"
+  elif ! git config -f "$IDENTITY" --list >/dev/null 2>&1; then
+    fail "git identity не читается: $(git config -f "$IDENTITY" --list 2>&1 | head -1)" "make identity"
+  else
+    pass "git identity: $(git config -f "$IDENTITY" user.name) <$(git config -f "$IDENTITY" user.email)>"
+  fi
+
+  echo ""
+  if (( fails == 0 )); then
+    ok "Всё на месте."
+  else
+    warn "Проблем: $fails. Команды для исправления — справа от каждой."
+  fi
+  return 0
+}
+
+if (( CHECK_ONLY )); then check_all; exit 0; fi
 
 # ═══════════════════════════════════════════════════════════════
 #  1. Homebrew
@@ -122,9 +225,9 @@ if command -v brew &>/dev/null; then
   }
 
   bundle brew/Brewfile.core "базовый набор" \
-    "CLI-инструменты, на которые опирается конфиг: stow, шрифт MesloLGS NF,
-  bat, eza, fd, ripgrep, fzf, zoxide, jq, trash, neovim, gh, delta, lazygit,
-  direnv, mise. Шрифт обязателен — без него промпт рисует квадраты."
+    "CLI-инструменты, на которые опирается конфиг: stow, шрифт MesloLGS Nerd Font,
+  git, bat, eza, fd, ripgrep, fzf, zoxide, jq, trash, neovim, gh, delta,
+  lazygit, tig, direnv, mise. Шрифт обязателен — без него промпт рисует квадраты."
 
   echo ""
   bundle brew/Brewfile.apps "GUI-приложения" \
@@ -138,16 +241,9 @@ fi
 header "Конфиги (GNU Stow)"
 
 if ! command -v stow &>/dev/null; then
-  warn "gnu-stow не установлен — конфиги не подключены."
-  warn "Установите (brew install gnu-stow) и запустите скрипт снова."
+  warn "stow не установлен — конфиги не подключены."
+  warn "Установите (brew install stow) и запустите скрипт снова."
 else
-  # Файл считается «нашим», если это симлинк внутрь каталога dotfiles.
-  is_ours() {
-    [[ -L "$1" ]] || return 1
-    local link; link="$(readlink "$1")"
-    [[ "$link" == "$DOTFILES"/* || "$link" == *"/$(basename "$DOTFILES")/"* ]]
-  }
-
   backup_conflicts() {
     local pkg="$1" rel target stamp dest found=0
     stamp="$(date +%Y%m%d-%H%M%S)"
@@ -156,14 +252,14 @@ else
       [[ -e "$target" || -L "$target" ]] || continue
       is_ours "$target" && continue
       if (( found == 0 )); then
-        warn "В \$HOME уже есть файлы из пакета «$pkg» — переношу в бэкап:"
+        warn "В \$HOME уже есть файлы из пакета «${pkg}» — переношу в бэкап:"
         found=1
       fi
       dest="$HOME/.dotfiles-backup/$stamp/$rel"
       echo "    $rel"
       run "mkdir -p '$(dirname "$dest")'"
       run "mv '$target' '$dest'"
-    done < <(cd "$DOTFILES/$pkg" && find . \( -type f -o -type l \) | sed 's|^\./||')
+    done < <(cd "$DOTFILES/$pkg" && find . \( -type f -o -type l \) ! -name .DS_Store | sed 's|^\./||')
     (( found )) && ok "Бэкап: ~/.dotfiles-backup/$stamp/"
     return 0
   }
@@ -173,10 +269,12 @@ else
   for pkg in "${PACKAGES[@]}"; do
     [[ -d "$DOTFILES/$pkg" ]] || continue
     case "$pkg" in
-      zsh)  desc="шелл: история, алиасы, fzf, zoxide, p10k" ;;
-      git)  desc="настройки, алиасы, delta, глобальный ignore" ;;
-      nvim) desc="редактор: YAML/k8s, Markdown, логи, Go" ;;
-      *)    desc="$pkg" ;;
+      zsh)     desc="шелл: история, алиасы, fzf, zoxide, p10k" ;;
+      git)     desc="настройки, алиасы, delta, глобальный ignore" ;;
+      nvim)    desc="редактор: YAML/k8s, Markdown, логи, Go, git" ;;
+      lazygit) desc="TUI для git" ;;
+      tig)     desc="история и blame в консоли" ;;
+      *)       desc="$pkg" ;;
     esac
 
     if ask "Подключить $pkg? ($desc)"; then
@@ -184,7 +282,7 @@ else
       # --no-folding принципиально: без него stow подменяет каталог
       # ~/.config/zsh симлинком на репозиторий, и всё, что туда пишут
       # (история, кеши, oh-my-zsh), оказывается в рабочей копии git.
-      run "stow --no-folding -d '$DOTFILES' -t '$HOME' --restow '$pkg'"
+      run "stow ${STOW_OPTS[*]} -d '$DOTFILES' -t '$HOME' --restow '$pkg'"
       ok "$pkg подключён"
     fi
   done
@@ -197,17 +295,23 @@ fi
 # ═══════════════════════════════════════════════════════════════
 header "Zsh: Oh-My-Zsh, тема, плагины"
 
-ZSH_DIR="$XDG_CONFIG/zsh/oh-my-zsh"
 echo "  oh-my-zsh               — фреймворк"
 echo "  powerlevel10k           — тема (конфиг .p10k.zsh уже в репозитории)"
 echo "  zsh-autosuggestions     — подсказки из истории"
 echo "  zsh-syntax-highlighting — подсветка команд при наборе"
+echo "  forgit                  — интерактивный git через fzf (glo, gd, gcb…)"
 echo ""
 
 if ask "Установить Oh-My-Zsh и плагины?"; then
   if [[ ! -d "$ZSH_DIR" ]]; then
     info "Ставлю Oh-My-Zsh…"
-    run "ZSH='$ZSH_DIR' sh -c \"\$(curl -fsSL https://raw.githubusercontent.com/ohmyzsh/ohmyzsh/master/tools/install.sh)\" '' --unattended --keep-zshrc"
+    # ZDOTDIR и KEEP_ZSHRC: иначе установщик создаёт свой ~/.zshrc-шаблон,
+    # который при нашей раскладке (ZDOTDIR=~/.config/zsh) не читается и
+    # только сбивает с толку. Ошибка установщика не должна ронять скрипт:
+    # дальше ещё идентичности git.
+    if ! run "ZSH='$ZSH_DIR' ZDOTDIR='$XDG_CONFIG/zsh' KEEP_ZSHRC=yes RUNZSH=no CHSH=no sh -c \"\$(curl -fsSL https://raw.githubusercontent.com/ohmyzsh/ohmyzsh/master/tools/install.sh)\" '' --unattended"; then
+      warn "Oh-My-Zsh не установился, см. вывод выше. Остальные шаги продолжаются."
+    fi
   else
     ok "Oh-My-Zsh уже установлен"
   fi
@@ -217,8 +321,8 @@ if ask "Установить Oh-My-Zsh и плагины?"; then
     if [[ -d "$dir" ]]; then
       ok "$name уже установлен"
     else
-      info "Ставлю $name…"
-      run "git clone --depth=1 '$url' '$dir'"
+      info "Ставлю ${name}…"
+      run "git clone --depth=1 '$url' '$dir'" || warn "$name: не удалось клонировать"
     fi
   }
   clone_once https://github.com/romkatv/powerlevel10k.git \
@@ -227,14 +331,44 @@ if ask "Установить Oh-My-Zsh и плагины?"; then
              "$ZSH_DIR/custom/plugins/zsh-autosuggestions" zsh-autosuggestions
   clone_once https://github.com/zsh-users/zsh-syntax-highlighting \
              "$ZSH_DIR/custom/plugins/zsh-syntax-highlighting" zsh-syntax-highlighting
+  clone_once https://github.com/wfxr/forgit \
+             "$ZSH_DIR/custom/plugins/forgit" forgit
+
+  # Шаблон ~/.zshrc, оставшийся от прежнего запуска установщика Oh-My-Zsh.
+  # zsh его не читает (конфиг живёт в ZDOTDIR), но пусть не вводит в заблуждение.
+  if [[ -f "$HOME/.zshrc" && ! -L "$HOME/.zshrc" ]] \
+     && grep -q 'Path to your Oh My Zsh installation' "$HOME/.zshrc" 2>/dev/null; then
+    stamp="$(date +%Y%m%d-%H%M%S)"
+    # shellcheck disable=SC2088  # ~ здесь просто текст сообщения, не путь
+    warn "~/.zshrc — шаблон установщика Oh-My-Zsh, не используется; переношу в ~/.dotfiles-backup/${stamp}/"
+    run "mkdir -p '$HOME/.dotfiles-backup/$stamp'"
+    run "mv '$HOME/.zshrc' '$HOME/.dotfiles-backup/$stamp/.zshrc'"
+  fi
+
+  # Тема bat под ту же Catppuccin, что в nvim (BAT_THEME в conf.d/20-tools.zsh)
+  if command -v bat &>/dev/null; then
+    bat_themes="$(bat --config-dir)/themes"
+    if [[ ! -f "$bat_themes/Catppuccin Mocha.tmTheme" ]]; then
+      info "Ставлю тему Catppuccin Mocha для bat…"
+      run "mkdir -p '$bat_themes'"
+      run "curl -fsSL -o '$bat_themes/Catppuccin Mocha.tmTheme' https://raw.githubusercontent.com/catppuccin/bat/main/themes/Catppuccin%20Mocha.tmTheme && bat cache --build >/dev/null" \
+        || warn "тема bat не установилась — bat будет с темой по умолчанию"
+    else
+      ok "тема bat уже установлена"
+    fi
+  fi
+
+  if [[ "$SHELL" != */zsh ]] && command -v zsh &>/dev/null; then
+    if ask "Сделать zsh шеллом по умолчанию? (сейчас $SHELL)"; then
+      run "chsh -s '$(command -v zsh)'"
+    fi
+  fi
 fi
 
 # ═══════════════════════════════════════════════════════════════
 #  5. Git: идентичности
 # ═══════════════════════════════════════════════════════════════
 header "Git: идентичности"
-
-IDENTITY="$XDG_CONFIG/git/identity"
 
 setup_identity() {
   cat <<'TXT'
@@ -248,8 +382,8 @@ setup_identity() {
 TXT
 
   local name email
-  name="$(askreq "Имя для коммитов" "$(git config --global user.name 2>/dev/null || true)")"
-  email="$(askreq "Личная почта (используется по умолчанию)")"
+  name="$(oneline "$(askreq "Имя для коммитов" "$(git config --global user.name 2>/dev/null || true)")")"
+  email="$(oneline "$(askreq "Личная почта (используется по умолчанию)")")"
 
   if (( DRY_RUN )); then
     info "[dry-run] записал бы $IDENTITY"
@@ -258,13 +392,13 @@ TXT
 
   mkdir -p "$XDG_CONFIG/git"
   umask 077
-  cat > "$IDENTITY" <<EOF
+  cat > "$IDENTITY" <<EOT
 # Создано install.sh. В git не коммитится.
 # Личная идентичность — действует везде, кроме путей ниже.
 [user]
 	name = $name
 	email = $email
-EOF
+EOT
 
   # Дополнительные аккаунты, привязанные к каталогу
   local n=0
@@ -281,21 +415,21 @@ EOF
     path="${path/#$HOME/\~}"
     [[ "$path" != */ ]] && path="$path/"
 
-    aname="$(askreq "Имя для коммитов в $path" "$name")"
-    aemail="$(askreq "Почта для $path")"
+    aname="$(oneline "$(askreq "Имя для коммитов в $path" "$name")")"
+    aemail="$(oneline "$(askreq "Почта для $path")")"
 
-    cat > "$XDG_CONFIG/git/identity.$slug" <<EOF
+    cat > "$XDG_CONFIG/git/identity.$slug" <<EOT
 # Создано install.sh. В git не коммитится.
 [user]
 	name = $aname
 	email = $aemail
-EOF
-    cat >> "$IDENTITY" <<EOF
+EOT
+    cat >> "$IDENTITY" <<EOT
 
 [includeIf "gitdir:$path"]
 	path = ~/.config/git/identity.$slug
-EOF
-    ok "Аккаунт «$slug» ($aemail) действует внутри $path"
+EOT
+    ok "Аккаунт «${slug}» ($aemail) действует внутри $path"
     n=$((n + 1))
   done
 
@@ -328,21 +462,25 @@ fi
 # ═══════════════════════════════════════════════════════════════
 #  Итог
 # ═══════════════════════════════════════════════════════════════
+(( DRY_RUN )) || check_all
+
 header "Готово"
 cat <<TXT
 Дальше:
 
   1. Перезапустить шелл:            exec zsh
   2. iTerm2 → Settings → Profiles:
-       • Text → Font           →  MesloLGS NF
+       • Text → Font           →  MesloLGS Nerd Font Mono
        • Keys → Left Option    →  Esc+     (для навигации Option+Стрелки)
   3. Проверить идентичность в репозитории:   git whoami
   4. При первом запуске nvim плагины и LSP-серверы поставятся сами.
+  5. Повторить проверку в любой момент:      make check
 
 Шпаргалка:
-  Ctrl+R  поиск по истории      Ctrl+T  поиск файлов
-  Alt+C   переход в каталог     z <имя> умный cd
-  -       файловый менеджер в nvim (oil)
+  Ctrl+R  поиск по истории      Ctrl+T  поиск файлов      Alt+C  переход в каталог
+  glo     лог (fzf)             gd      diff (fzf)        gcb    ветки (fzf)
+  git lg / lga / ll / bra / bl  история, ветки, blame     lg     lazygit
+  tig / tig blame <файл>        история и авторство в консоли
 
 Локальные настройки и секреты, которые не должны попасть в git:
   ~/.config/zsh/local.zsh

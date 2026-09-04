@@ -1,9 +1,11 @@
 -- =====================================================
--- Neovim — YAML/k8s, документация, логи, Go, личные проекты.
+-- Neovim — YAML/k8s, документация, логи, Go, личные проекты, git.
 --
 -- Java здесь СОЗНАТЕЛЬНО не поддерживается: для неё IDEA.
 -- Настраивать jdtls, чтобы получить худшую версию того, что
 -- уже есть по подписке, — не окупается.
+--
+-- Требует Neovim >= 0.11 (vim.lsp.config / vim.lsp.enable).
 -- =====================================================
 
 vim.g.mapleader = " "
@@ -43,6 +45,9 @@ o.listchars = { tab = "→ ", trail = "·", nbsp = "␣" }
 -- =====================================================
 -- Клавиши
 -- =====================================================
+-- Раскладка leader (Space):
+--   f файлы   s поиск по содержимому   b буферы   / поиск в буфере
+--   g… git    h… hunk (gitsigns)       d диагностика   w/q сохранить/закрыть
 local map = vim.keymap.set
 
 map("n", "<Esc>", "<cmd>nohlsearch<CR>")
@@ -70,7 +75,7 @@ end, { desc = "Перенос строк вкл/выкл" })
 -- иначе nvim подвисает на treesitter.
 vim.api.nvim_create_autocmd("BufReadPre", {
   callback = function(ev)
-    local ok, st = pcall(vim.uv and vim.uv.fs_stat or vim.loop.fs_stat, ev.match)
+    local ok, st = pcall(vim.uv.fs_stat, ev.match)
     if ok and st and st.size > 5 * 1024 * 1024 then
       vim.b[ev.buf].large_file = true
       vim.opt_local.foldmethod = "manual"
@@ -85,13 +90,13 @@ vim.api.nvim_create_autocmd("BufReadPre", {
 vim.api.nvim_create_user_command("Tail", function()
   vim.opt_local.autoread = true
   vim.cmd("normal! G")
-  local t = vim.uv and vim.uv.new_timer() or vim.loop.new_timer()
+  local t = vim.uv.new_timer()
   t:start(1000, 1000, vim.schedule_wrap(function()
     if vim.api.nvim_buf_is_valid(0) then vim.cmd("silent! checktime") else t:stop() end
   end))
 end, { desc = "Следить за файлом, как tail -f" })
 
--- Подсветка курсором выделенного при копировании
+-- Подсветка скопированного
 vim.api.nvim_create_autocmd("TextYankPost", {
   callback = function() vim.highlight.on_yank() end,
 })
@@ -100,8 +105,7 @@ vim.api.nvim_create_autocmd("TextYankPost", {
 -- Bootstrap lazy.nvim
 -- =====================================================
 local lazypath = vim.fn.stdpath("data") .. "/lazy/lazy.nvim"
-local uv = vim.uv or vim.loop            -- vim.uv появился в 0.10
-if not uv.fs_stat(lazypath) then
+if not vim.uv.fs_stat(lazypath) then
   vim.fn.system({
     "git", "clone", "--filter=blob:none",
     "https://github.com/folke/lazy.nvim.git",
@@ -124,7 +128,17 @@ require("lazy").setup({
   },
 
   -- ── Подсказка биндингов ───────────────────────────
-  { "folke/which-key.nvim", event = "VeryLazy", opts = {} },
+  {
+    "folke/which-key.nvim",
+    event = "VeryLazy",
+    opts = {
+      spec = {
+        { "<leader>g", group = "git" },
+        { "<leader>h", group = "hunk" },
+        { "<leader>t", group = "toggle" },
+      },
+    },
+  },
 
   -- ── Статусбар ─────────────────────────────────────
   {
@@ -139,12 +153,17 @@ require("lazy").setup({
     branch = "0.1.x",
     dependencies = { "nvim-lua/plenary.nvim" },
     keys = {
-      { "<leader>f", "<cmd>Telescope find_files<CR>",              desc = "Файлы" },
-      { "<leader>g", "<cmd>Telescope live_grep<CR>",               desc = "Поиск по содержимому" },
-      { "<leader>b", "<cmd>Telescope buffers<CR>",                 desc = "Буферы" },
+      { "<leader>f", "<cmd>Telescope find_files<CR>",                desc = "Файлы" },
+      { "<leader>s", "<cmd>Telescope live_grep<CR>",                 desc = "Поиск по содержимому" },
+      { "<leader>b", "<cmd>Telescope buffers<CR>",                   desc = "Буферы" },
       { "<leader>/", "<cmd>Telescope current_buffer_fuzzy_find<CR>", desc = "Поиск в буфере" },
-      { "<leader>d", "<cmd>Telescope diagnostics<CR>",             desc = "Диагностика" },
-      { "<leader>r", "<cmd>Telescope resume<CR>",                  desc = "Повторить поиск" },
+      { "<leader>d", "<cmd>Telescope diagnostics<CR>",               desc = "Диагностика" },
+      { "<leader>r", "<cmd>Telescope resume<CR>",                    desc = "Повторить поиск" },
+      -- git: лог с превью коммита, коммиты текущего файла, ветки (Enter — checkout)
+      { "<leader>gl", "<cmd>Telescope git_commits<CR>",  desc = "Лог репозитория" },
+      { "<leader>gL", "<cmd>Telescope git_bcommits<CR>", desc = "Коммиты этого файла" },
+      { "<leader>gB", "<cmd>Telescope git_branches<CR>", desc = "Ветки" },
+      { "<leader>gS", "<cmd>Telescope git_status<CR>",   desc = "Изменённые файлы" },
     },
   },
 
@@ -157,31 +176,39 @@ require("lazy").setup({
   },
 
   -- ── Treesitter ────────────────────────────────────
+  -- Ветка main — переписанный плагин с другим API (master заморожен).
+  -- Парсеры собираются локально: нужны tree-sitter-cli и компилятор C
+  -- (tree-sitter-cli в Brewfile.core, cc — из Xcode Command Line Tools).
   {
     "nvim-treesitter/nvim-treesitter",
+    branch = "main",
+    lazy = false,
     build = ":TSUpdate",
     config = function()
-      require("nvim-treesitter.configs").setup({
-        ensure_installed = {
-          -- инфраструктура и конфиги — основная работа здесь
-          "yaml", "json", "jsonc", "toml", "hcl", "terraform",
-          "dockerfile", "bash", "xml",
-          -- документация
-          "markdown", "markdown_inline",
-          -- git
-          "gitcommit", "git_rebase", "gitignore", "diff",
-          -- Go и личные проекты
-          "go", "gomod", "gosum", "gowork",
-          "javascript", "typescript", "vue", "html", "css",
-          "python", "sql",
-          -- сам редактор
-          "lua", "vim", "vimdoc", "query", "regex",
-        },
-        highlight = {
-          enable = true,
-          disable = function(_, buf) return vim.b[buf].large_file end,
-        },
-        indent = { enable = true },
+      local langs = {
+        -- инфраструктура и конфиги — основная работа здесь
+        "yaml", "json", "jsonc", "toml", "hcl", "terraform",
+        "dockerfile", "bash", "xml",
+        -- документация
+        "markdown", "markdown_inline",
+        -- git
+        "gitcommit", "git_rebase", "gitignore", "diff",
+        -- Go и личные проекты
+        "go", "gomod", "gosum", "gowork",
+        "javascript", "typescript", "vue", "html", "css",
+        "python", "sql",
+        -- сам редактор
+        "lua", "vim", "vimdoc", "query", "regex",
+      }
+      require("nvim-treesitter").install(langs)
+      -- Подсветка и отступы включаются per-buffer через встроенный API
+      vim.api.nvim_create_autocmd("FileType", {
+        callback = function(ev)
+          if vim.b[ev.buf].large_file then return end
+          if pcall(vim.treesitter.start, ev.buf) then
+            vim.bo[ev.buf].indentexpr = "v:lua.require'nvim-treesitter'.indentexpr()"
+          end
+        end,
       })
     end,
   },
@@ -205,17 +232,21 @@ require("lazy").setup({
   { "b0o/schemastore.nvim", lazy = true },
 
   -- ── LSP ───────────────────────────────────────────
+  -- Через vim.lsp.config / vim.lsp.enable (Neovim 0.11+): nvim-lspconfig
+  -- даёт только описания серверов, require("lspconfig") устарел.
+  -- mason ставит бинарники, mason-lspconfig включает их по мере установки.
   {
     "neovim/nvim-lspconfig",
     event = { "BufReadPre", "BufNewFile" },
     dependencies = {
-      { "williamboman/mason.nvim", opts = {} },
-      "williamboman/mason-lspconfig.nvim",
+      { "mason-org/mason.nvim", opts = {} },
+      "mason-org/mason-lspconfig.nvim",
       "saghen/blink.cmp",
       "b0o/schemastore.nvim",
     },
     config = function()
-      local caps = require("blink.cmp").get_lsp_capabilities()
+      -- Общие capabilities (автодополнение) для всех серверов
+      vim.lsp.config("*", { capabilities = require("blink.cmp").get_lsp_capabilities() })
 
       local servers = {
         gopls = {
@@ -253,14 +284,15 @@ require("lazy").setup({
         },
       }
 
+      for name, cfg in pairs(servers) do
+        vim.lsp.config(name, cfg)
+      end
+
+      -- ensure_installed ставит недостающие серверы; automatic_enable (по умолчанию)
+      -- вызывает vim.lsp.enable для каждого установленного — и сразу после установки.
       require("mason-lspconfig").setup({
         ensure_installed = vim.tbl_keys(servers),
       })
-
-      for name, cfg in pairs(servers) do
-        cfg.capabilities = caps
-        require("lspconfig")[name].setup(cfg)
-      end
 
       vim.api.nvim_create_autocmd("LspAttach", {
         callback = function(ev)
@@ -319,14 +351,54 @@ require("lazy").setup({
   { "fei6409/log-highlight.nvim", ft = "log", opts = {} },
 
   -- ── Git ───────────────────────────────────────────
-  { "lewis6991/gitsigns.nvim", event = "BufReadPre", config = true },
+  -- Кто за что отвечает:
+  --   gitsigns  — знаки изменений в gutter, hunk'и, blame текущей строки
+  --   fugitive  — :Git <что угодно>; :Git blame — авторство всего файла
+  --   diffview  — diff и история файла/репозитория в split'ах
+  --   telescope — fuzzy по коммитам и веткам (см. блок telescope выше)
+  --   lazygit   — полный TUI, не выходя из nvim
+  {
+    "lewis6991/gitsigns.nvim",
+    event = "BufReadPre",
+    opts = {
+      current_line_blame_opts = { delay = 300 },
+      on_attach = function(buf)
+        local gs = require("gitsigns")
+        local function m(l, r, desc) map("n", l, r, { buffer = buf, desc = desc }) end
+        m("]c", function() gs.nav_hunk("next") end, "Следующий hunk")
+        m("[c", function() gs.nav_hunk("prev") end, "Предыдущий hunk")
+        m("<leader>hp", gs.preview_hunk,  "Показать hunk")
+        m("<leader>hs", gs.stage_hunk,    "Stage hunk")
+        m("<leader>hr", gs.reset_hunk,    "Откатить hunk")
+        m("<leader>hd", gs.diffthis,      "Diff буфера с индексом")
+        m("<leader>hb", function() gs.blame_line({ full = true }) end, "Кто и когда менял строку")
+        m("<leader>tb", gs.toggle_current_line_blame, "Blame рядом со строкой")
+      end,
+    },
+  },
+  {
+    "tpope/vim-fugitive",
+    cmd = { "Git", "Gdiffsplit", "Gvdiffsplit", "Gclog", "Gread", "Gwrite" },
+    keys = {
+      { "<leader>gs", "<cmd>Git<CR>",       desc = "Статус (s — stage, cc — commit, = — diff)" },
+      { "<leader>gb", "<cmd>Git blame<CR>", desc = "Blame файла (Enter — коммит, o — split)" },
+    },
+  },
   {
     "sindrets/diffview.nvim",
-    cmd = { "DiffviewOpen", "DiffviewFileHistory" },
+    cmd = { "DiffviewOpen", "DiffviewFileHistory", "DiffviewClose" },
     keys = {
-      { "<leader>gd", "<cmd>DiffviewOpen<CR>",        desc = "Diff рабочего дерева" },
+      { "<leader>gd", "<cmd>DiffviewOpen<CR>",          desc = "Diff рабочего дерева" },
       { "<leader>gh", "<cmd>DiffviewFileHistory %<CR>", desc = "История файла" },
+      { "<leader>gH", "<cmd>DiffviewFileHistory<CR>",   desc = "История репозитория" },
+      { "<leader>gq", "<cmd>DiffviewClose<CR>",         desc = "Закрыть diffview" },
     },
+  },
+  {
+    "kdheepak/lazygit.nvim",
+    cmd = "LazyGit",
+    dependencies = { "nvim-lua/plenary.nvim" },
+    keys = { { "<leader>gg", "<cmd>LazyGit<CR>", desc = "Lazygit" } },
   },
 
   -- ── Мелочи ────────────────────────────────────────

@@ -1,0 +1,37 @@
+# Lazygit — TUI для git. Запуск: lazygit (алиас lg), из nvim — Space g g.
+# Читается из ~/.config/lazygit/config.yml (XDG_CONFIG_HOME задан в .zshenv).
+#
+# Панели: 1 статус · 2 файлы · 3 ветки · 4 коммиты · 5 стеши.
+# Переключение: цифра, Tab, h/l. Внутри панели: j/k, / поиск, ? все клавиши.
+#
+# История:  4 → Enter файлы коммита · y что скопировать (хеш, сообщение, автор)
+#           Ctrl+L меню лога (граф, порядок, --all) · Ctrl+S фильтр по строке
+#           W diff между двумя ссылками · Ctrl+O скопировать хеш
+# Ветка:    3 → Enter коммиты ветки · Space checkout · Ctrl+O скопировать имя
+# Файл:     2 → Enter изменения по строкам · Ctrl+T открыть в nvim difftool
+# Правка:   r переписать сообщение · s squash · f fixup · d удалить коммит
+#           A влить staged в коммит · i интерактивный rebase · t revert
+# Спасение: z отменить последнюю операцию git · Z вернуть · Ctrl+P патчи
+git:
+  diffRenderers:
+    - colorArg: always
+      # делает diff цветным через delta; side-by-side выключен в [delta "lazygit"]
+      command: delta --paging=never --features lazygit
+  log:
+    # topo-order держит ветку неразрывной: коммиты одной ветки идут подряд,
+    # а не перемешиваются по дате с коммитами соседних веток.
+    order: topo-order
+    showGraph: always
+    showWholeGraph: false # Ctrl+L → Show whole graph включает --all по месту
+  autoFetch: true
+  autoRefresh: true
+gui:
+  nerdFontsVersion: "3" # иконки — шрифт MesloLGS Nerd Font установлен из Brewfile
+  showRandomTip: false
+  showBottomLine: false # лишняя строка подсказок; ? и так показывает всё
+  sidePanelWidth: 0.3
+  # Насколько ветка разошлась с базовой — стрелка и число прямо в списке веток
+  showDivergenceFromBaseBranch: arrowAndNumber
+  language: en
+os:
+  editPreset: nvim

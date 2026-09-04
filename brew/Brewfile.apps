@@ -5,7 +5,7 @@
 
 # ---------- рабочее окружение ----------
 cask "iterm2"       # терминал: сплиты, профили, поиск
-cask "docker"       # Docker Desktop
+cask "docker-desktop" # Docker Desktop (cask docker переименован)
 cask "raycast"      # запуск, буфер обмена, сниппеты, окна, свои скрипты
 
 # ---------- повседневное ----------
@@ -17,4 +17,7 @@ cask "keka"         # архиватор (rar, 7z)
 # Уже установлены вручную — перечислены, чтобы Brewfile описывал
 # машину целиком и новая разворачивалась одной командой.
 cask "iina"         # видеоплеер
-cask "obsidian"     # заметки в Markdown
+# obsidian поставлен вручную: brew не может «усыновить» его (chmod: Operation not
+# permitted). Чтобы перевести под brew: удалить /Applications/Obsidian.app и
+# раскомментировать строку.
+# cask "obsidian"   # заметки в Markdown

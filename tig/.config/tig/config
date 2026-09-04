@@ -1,0 +1,36 @@
+# tig — история, blame и ветки в консоли. Читается из ~/.config/tig/config.
+#
+#   tig                 история текущей ветки       tig --all      все ветки
+#   tig blame <файл>    авторство по строкам        tig status     что изменено
+#   tig grep <текст>    поиск по содержимому         tig stash      стеши
+#   tig refs            ветки и теги                tig <ветка>    её история
+#
+# Внутри:  Enter  открыть коммит/дифф    q  назад    /  поиск    h  все клавиши
+#          в blame: Enter коммит строки, ,  перейти к предыдущей версии строки
+#          в refs:  C  checkout выбранной ветки
+
+# Колонки в основном виде: хеш, дата, автор, граф, ветки, сообщение
+set main-view = id:yes,width=8 date:relative author:full,width=16 commit-title:yes,graph:yes,refs:yes
+set blame-view = date:relative author:full,width=16 id:yes,color line-number:yes,interval=1 text
+set blame-options = -w -C -C -C        # игнорировать пробелы, видеть перемещения
+
+set line-graphics = utf-8
+set mouse = yes
+set ignore-case = smart-case
+set vertical-split = auto
+set split-view-height = 70%
+set tab-size = 4
+
+# vim-подобная навигация
+bind generic g move-first-line
+bind generic G move-last-line
+bind generic <Ctrl-D> move-half-page-down
+bind generic <Ctrl-U> move-half-page-up
+
+# Действия
+bind main    F ?git fetch --all --prune
+bind refs    C ?git switch %(branch)
+bind refs    D ?git branch -d %(branch)
+bind main    C ?git switch %(commit)
+bind status  C !git commit
+bind generic E !nvim %(file)

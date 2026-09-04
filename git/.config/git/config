@@ -10,6 +10,16 @@
 [core]
 	autocrlf = input
 	pager = delta
+	editor = nvim
+
+[commit]
+	verbose = true             # diff в буфере сообщения коммита
+
+[log]
+	follow = true              # git log <файл> — сквозь переименования
+
+[status]
+	showStash = true           # напоминать, что в stash что-то лежит
 
 [init]
 	defaultBranch = main
@@ -31,6 +41,21 @@
 [diff]
 	algorithm = histogram      # лучший алгоритм диффов
 	colorMoved = default       # подсвечивать перемещённый код
+	renames = copies           # видеть переименования и копии
+	tool = nvimdiff
+
+[difftool]
+	prompt = false
+
+[merge]
+	tool = nvimdiff
+
+[mergetool]
+	prompt = false
+	keepBackup = false         # не оставлять *.orig
+
+[mergetool "nvimdiff"]
+	layout = "LOCAL,BASE,REMOTE / MERGED"
 
 [rebase]
 	autoStash = true           # stash перед rebase, unstash после
@@ -56,28 +81,61 @@
 
 [delta]
 	dark = true
-	navigate = true
+	navigate = true            # n / N — прыгать между файлами
 	side-by-side = true
 	line-numbers = true
 
+# Панель diff в lazygit узкая — там side-by-side не помещается.
+# lazygit вызывает delta --features lazygit (см. lazygit/config.yml).
+[delta "lazygit"]
+	side-by-side = false
+
 [alias]
+	# ── короткие ───────────────────────────────────────────────
 	co = checkout
+	sw = switch
+	swc = switch -c
 	br = branch
 	ci = commit
-	st = status
-	lg = log --oneline --graph --decorate -20
+	st = status -sb
 	undo = reset --soft HEAD~1
 	amend = commit --amend --no-edit
 	wip = !git add -A && git commit -m 'wip'
-	branches = branch -a --sort=-committerdate
-	stashes = stash list
+	fixup = commit --fixup                    # git fixup <sha>, потом git ri
+	ri = rebase -i --autosquash
+
+	# ── история ────────────────────────────────────────────────
+	# граф: хеш, дата, автор, ветки, сообщение
+	lg = log --graph --date=short -30 --pretty=tformat:'%C(yellow)%h%C(reset) %C(green)%ad%C(reset) %C(bold blue)%<(14,trunc)%an%C(reset) %C(auto)%d%C(reset) %s'
+	# то же по всем веткам
+	lga = !git lg --all
+	# с изменёнными файлами и относительной датой
+	ll = log --stat --date=relative --pretty=tformat:'%C(yellow)%h%C(reset) %C(green)%ad%C(reset) %C(bold blue)%an%C(reset)%C(auto)%d%C(reset)%n  %s%n'
+	last = log -1 --stat
+	# полное сообщение коммита с автором и коммиттером: git msg <sha>
+	msg = show -s --pretty=fuller
+	# история файла сквозь переименования, с диффами: git hist <файл>
+	hist = log --follow -p --stat --
+	# поиск по тексту сообщений во всех ветках: git search <текст>
+	search = log --all -i --pretty=tformat:'%C(yellow)%h%C(reset) %C(green)%ad%C(reset) %C(bold blue)%an%C(reset) %s' --date=short --grep
+	# найти коммит по добавленной/удалённой строке: git pickaxe <строка>
+	pickaxe = log -S
 	# что накопилось в ветке относительно main
 	up = log --oneline --graph main..HEAD
-	# ветки, чей upstream удалён
-	gone = "!git fetch -p && git branch -vv | awk '/: gone]/{print $1}'"
-	# чей это код
-	who = shortlog -sne --
-	# найти коммит по изменённой строке
-	pickaxe = log -S
+
+	# ── авторство ──────────────────────────────────────────────
+	# blame без учёта пробелов и сквозь перемещения кода: git bl <файл>
+	bl = blame -w -C -C -C --date=short
+	# кто сколько коммитил: git who [путь]
+	who = shortlog -sne HEAD --
 	# какой идентичностью подписан текущий репозиторий
 	whoami = "!f(){ printf '%s <%s>\\n' \"$(git config user.name)\" \"$(git config user.email)\"; }; f"
+
+	# ── ветки ──────────────────────────────────────────────────
+	# все ветки таблицей: имя, когда, кто, последний коммит
+	bra = "!git for-each-ref --color=always --sort=-committerdate refs/heads refs/remotes --format='%(color:yellow)%(refname:short)%(color:reset)|%(color:green)%(committerdate:relative)%(color:reset)|%(color:bold blue)%(authorname)%(color:reset)|%(contents:subject)' | column -ts'|' | less -RFX"
+	# локальные ветки с upstream и отставанием
+	bv = branch -vv --sort=-committerdate
+	# ветки, чей upstream удалён
+	gone = "!git fetch -p && git branch -vv | awk '/: gone]/{print $1}'"
+	stashes = stash list

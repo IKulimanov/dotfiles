@@ -10,7 +10,10 @@ fi
 # --- Oh-My-Zsh ---
 export ZSH="$ZDOTDIR/oh-my-zsh"
 ZSH_THEME="powerlevel10k/powerlevel10k"
-plugins=(git zsh-syntax-highlighting zsh-autosuggestions)
+# forgit — интерактивный git через fzf: glo (лог), gd (diff), gcb (ветки),
+# ga (add), gcf (checkout файла), gss (stash), gbl (blame). Идёт последним,
+# чтобы его алиасы перекрыли одноимённые из плагина git.
+plugins=(git zsh-syntax-highlighting zsh-autosuggestions forgit)
 [[ -f "$ZSH/oh-my-zsh.sh" ]] && source "$ZSH/oh-my-zsh.sh"
 
 # --- Powerlevel10k ---
