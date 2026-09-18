@@ -1,7 +1,7 @@
 # Точка входа. Всё то же самое делает ./install.sh, но по шагам.
 SHELL := /usr/bin/env bash
 HOME_DIR ?= $(HOME)
-PACKAGES := zsh git nvim lazygit tig
+PACKAGES := zsh git nvim lazygit tig k9s
 STOW := stow --no-folding --ignore='\.DS_Store' -t "$(HOME_DIR)"
 
 .PHONY: help install check link unlink relink core apps macos lint identity

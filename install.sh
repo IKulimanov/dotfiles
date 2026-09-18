@@ -11,7 +11,7 @@ set -euo pipefail
 DOTFILES="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd -P)"
 XDG_CONFIG="${XDG_CONFIG_HOME:-$HOME/.config}"
 XDG_STATE="${XDG_STATE_HOME:-$HOME/.local/state}"
-PACKAGES=(zsh git nvim lazygit tig)
+PACKAGES=(zsh git nvim lazygit tig k9s)
 ZSH_DIR="$XDG_CONFIG/zsh/oh-my-zsh"
 IDENTITY="$XDG_CONFIG/git/identity"
 # .DS_Store не должен становиться симлинком, даже если Finder его создал
@@ -274,6 +274,7 @@ else
       nvim)    desc="редактор: YAML/k8s, Markdown, логи, Go, git" ;;
       lazygit) desc="TUI для git" ;;
       tig)     desc="история и blame в консоли" ;;
+      k9s)     desc="TUI для kubernetes: поды, логи, рестарт" ;;
       *)       desc="$pkg" ;;
     esac
 

@@ -1,0 +1,65 @@
+# k9s — TUI для кластера: список подов, их активность, логи, рестарт.
+#
+# Путь ~/.config/k9s работает потому, что .zshenv выставляет XDG_CONFIG_HOME.
+# Без него k9s ушёл бы в ~/Library/Application Support/k9s.
+#
+# Состояние, привязанное к конкретному кластеру (последний namespace, вид),
+# k9s держит отдельно в ~/Library/Application Support/k9s/clusters — в git
+# это не попадает и не должно.
+k9s:
+  liveViewAutoRefresh: false
+  gpuVendors: {}
+  screenDumpDir: /Users/ivankulimanov/Library/Application Support/k9s/screen-dumps
+  refreshRate: 2
+  apiServerTimeout: 2m0s
+  maxConnRetry: 5
+  # readOnly: false — рестарт и удаление подов нужны в работе.
+  # Разовый безопасный запуск, когда лезешь в незнакомый кластер: k9s --readonly
+  readOnly: false
+  noExitOnCtrlC: false
+  portForwardAddress: localhost
+  ui:
+    enableMouse: false
+    headless: false
+    logoless: false
+    crumbsless: false
+    # Не показывать заставку при старте — открывается сразу на списке
+    splashless: true
+    # Перерисовывать вид, когда ресурсы меняются, а не только по таймеру
+    reactive: true
+    noIcons: false
+    invert: false
+    defaultsToFullScreen: false
+    useFullGVRTitle: false
+  skipLatestRevCheck: false
+  disablePodCounting: false
+  shellPod:
+    image: busybox:1.37.0
+    namespace: default
+    limits:
+      cpu: 100m
+      memory: 100Mi
+  imageScans:
+    enable: false
+    exclusions:
+      namespaces: []
+      labels: {}
+  logger:
+    # 100 строк хвоста мало, когда смотришь, почему упал сервис
+    tail: 200
+    buffer: 5000
+    sinceSeconds: -1
+    # Длинные строки (стектрейсы, JSON-логи) переносить, а не обрезать
+    textWrap: true
+    disableAutoscroll: false
+    columnLock: false
+    # Время рядом с каждой строкой — иначе непонятно, свежая она или нет
+    showTime: true
+  thresholds:
+    cpu:
+      critical: 90
+      warn: 70
+    memory:
+      critical: 90
+      warn: 70
+  defaultView: ""

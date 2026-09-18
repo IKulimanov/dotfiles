@@ -1375,9 +1375,11 @@
   typeset -g POWERLEVEL9K_TERRAFORM_VERSION_SHOW_ON_COMMAND='terraform|tf'
 
   #############[ kubecontext: current kubernetes context (https://kubernetes.io/) ]#############
-  # Show kubecontext only when the command you are typing invokes one of these tools.
-  # Tip: Remove the next line to always show kubecontext.
-  typeset -g POWERLEVEL9K_KUBECONTEXT_SHOW_ON_COMMAND='kubectl|helm|kubens|kubectx|oc|istioctl|kogito|k9s|helmfile|flux|fluxctl|stern|kubeseal|skaffold|kubent|kubecolor|cmctl|sparkctl'
+  # Контекст показывается ВСЕГДА, а не только при наборе kubectl.
+  # В конфиге есть прод-кластеры: цвет сегмента должен быть виден до того,
+  # как команда набрана, иначе легко рестартовать под не в том кластере.
+  # Вернуть прежнее поведение — раскомментировать строку ниже.
+  # typeset -g POWERLEVEL9K_KUBECONTEXT_SHOW_ON_COMMAND='kubectl|helm|kubens|kubectx|oc|istioctl|kogito|k9s|helmfile|flux|fluxctl|stern|kubeseal|skaffold|kubent|kubecolor|cmctl|sparkctl'
 
   # Kubernetes context classes for the purpose of using different colors, icons and expansions with
   # different contexts.
@@ -1406,12 +1408,25 @@
   #   typeset -g POWERLEVEL9K_KUBECONTEXT_TEST_BACKGROUND=2
   #   typeset -g POWERLEVEL9K_KUBECONTEXT_TEST_VISUAL_IDENTIFIER_EXPANSION='⭐'
   #   typeset -g POWERLEVEL9K_KUBECONTEXT_TEST_CONTENT_EXPANSION='> ${P9K_CONTENT} <'
+  # Классы по имени контекста. Порядок важен — выигрывает первое совпадение.
+  #   *prod*     → nur-prod, nur-prod02, production.nurtelecom.k8s
+  #   *staging*  → nur-staging, staging.nurtelecom.k8s
+  #   остальное  → billing.nurtelecom.k8s, web.nurtelecom.k8s — принадлежность
+  #                к среде по имени не видна, поэтому «осторожно», а не «безопасно».
   typeset -g POWERLEVEL9K_KUBECONTEXT_CLASSES=(
-      # '*prod*'  PROD    # These values are examples that are unlikely
-      # '*test*'  TEST    # to match your needs. Customize them as needed.
-      '*'       DEFAULT)
-  typeset -g POWERLEVEL9K_KUBECONTEXT_DEFAULT_FOREGROUND=7
-  typeset -g POWERLEVEL9K_KUBECONTEXT_DEFAULT_BACKGROUND=5
+      '*prod*'     PROD
+      '*staging*'  STAGING
+      '*'          DEFAULT)
+
+  # PROD — белым по красному
+  typeset -g POWERLEVEL9K_KUBECONTEXT_PROD_FOREGROUND=7
+  typeset -g POWERLEVEL9K_KUBECONTEXT_PROD_BACKGROUND=1
+  # STAGING — чёрным по зелёному
+  typeset -g POWERLEVEL9K_KUBECONTEXT_STAGING_FOREGROUND=0
+  typeset -g POWERLEVEL9K_KUBECONTEXT_STAGING_BACKGROUND=2
+  # Неопознанный кластер — чёрным по жёлтому
+  typeset -g POWERLEVEL9K_KUBECONTEXT_DEFAULT_FOREGROUND=0
+  typeset -g POWERLEVEL9K_KUBECONTEXT_DEFAULT_BACKGROUND=3
   # typeset -g POWERLEVEL9K_KUBECONTEXT_DEFAULT_VISUAL_IDENTIFIER_EXPANSION='⭐'
 
   # Use POWERLEVEL9K_KUBECONTEXT_CONTENT_EXPANSION to specify the content displayed by kubecontext
@@ -1459,6 +1474,13 @@
   POWERLEVEL9K_KUBECONTEXT_DEFAULT_CONTENT_EXPANSION+='${P9K_KUBECONTEXT_CLOUD_CLUSTER:-${P9K_KUBECONTEXT_NAME}}'
   # Append the current context's namespace if it's not "default".
   POWERLEVEL9K_KUBECONTEXT_DEFAULT_CONTENT_EXPANSION+='${${:-/$P9K_KUBECONTEXT_NAMESPACE}:#/default}'
+
+  # Классам PROD и STAGING нужна своя копия: p10k ищет выражение строго по
+  # имени класса и на DEFAULT_ не откатывается.
+  typeset -g POWERLEVEL9K_KUBECONTEXT_STAGING_CONTENT_EXPANSION="$POWERLEVEL9K_KUBECONTEXT_DEFAULT_CONTENT_EXPANSION"
+  # У прода имя ещё и с пометкой — чтобы отличалось не только цветом
+  # (при копировании вывода и в монохромном терминале цвет теряется).
+  typeset -g POWERLEVEL9K_KUBECONTEXT_PROD_CONTENT_EXPANSION="PROD:$POWERLEVEL9K_KUBECONTEXT_DEFAULT_CONTENT_EXPANSION"
 
   # Custom prefix.
   # typeset -g POWERLEVEL9K_KUBECONTEXT_PREFIX='at '

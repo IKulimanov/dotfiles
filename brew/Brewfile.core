@@ -35,6 +35,16 @@ brew "tig"          # история, blame и ветки в консоли, к�
 brew "shellcheck"   # проверка shell-скриптов (make lint)
 brew "direnv"       # авто-загрузка .envrc
 
+# ---------- kubernetes ----------
+# Доступ к кластерам — через корпоративный Keycloak (OIDC), поэтому
+# нужен kubelogin: kubectl сам браузер для логина не открывает.
+brew "kubernetes-cli"  # свежий kubectl вместо того, что кладёт Docker Desktop
+brew "int128/kubelogin/kubelogin" # плагин kubectl-oidc_login, вход через Keycloak
+brew "k9s"          # TUI: активность подов, логи, рестарт — как lazygit для кластера
+brew "stern"        # логи сразу со всех подов по маске; kubectl logs умеет только один
+brew "kubectx"      # kubectx / kubens — переключение контекста и namespace
+brew "kubecolor"    # подсветка вывода kubectl
+
 # mise — версии Go / Node / Python по каталогу.
 # Пришёл на замену rbenv, который висел в конфиге, хотя Ruby не используется.
 # Не нужен — удалите строку и уберите activate из conf.d/20-tools.zsh.
