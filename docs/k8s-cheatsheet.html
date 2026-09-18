@@ -493,21 +493,32 @@ business-m2m-gateway-tb-7d56dd5957-mh2k8         1/1     <u>Running</u>   0     
     <div class="cmds">
       <div class="row"><code>kctx</code><span>сменить кластер — без аргумента откроется список</span></div>
       <div class="row"><code>kns</code><span>сменить namespace — тоже списком, ищется по буквам</span></div>
+      <div class="row"><code>kmyns</code><span>namespace этого кластера, где у тебя <em>реально</em> есть права</span></div>
+      <div class="row"><code>kubectl config current-context</code><span>в каком кластере я сейчас</span></div>
       <div class="row"><code>kubectl config get-contexts</code><span>все кластеры и их namespace таблицей</span></div>
       <div class="row"><code>kubectl auth whoami</code><span>кем ты видишься кластеру</span></div>
     </div>
 
-    <h3>Namespace, где у тебя есть права</h3>
-    <div class="ns">
-      <div>staging-business-m2m-gateway <span class="tag">открывается по умолчанию</span></div>
-      <div>staging-apps-monitoring-service</div>
-      <div>staging-cockpit-testing-management</div>
-      <div>staging-education</div>
-      <div>staging-myo-flow-event</div>
-    </div>
+    <h3>Какие namespace тебе доступны</h3>
     <p>
-      Остальные 78 namespace кластера видны в списках, но внутри всё закрыто.
-      В своих права полные: логи, вход внутрь пода, рестарт, удаление.
+      <code class="inl">kubectl get ns</code> покажет все namespace кластера — в staging их 83 —
+      но внутрь почти всех тебя не пустят. Чтобы увидеть только свои:
+    </p>
+    <div class="term"><b>kmyns</b>
+staging-apps-monitoring-service
+staging-business-m2m-gateway
+staging-cockpit-testing-management
+staging-education
+staging-myo-flow-event</div>
+    <p>
+      Права выдаются <strong>на кластер</strong>, поэтому в каждом кластере список свой.
+      В staging это пять namespace выше; в <code class="inl">nur-prod02</code> — другие десять,
+      включая <code class="inl">prod-*</code> и <code class="inl">lk-mobile-api</code>.
+      Переключил кластер через <code class="inl">kctx</code> — прогони <code class="inl">kmyns</code> заново.
+    </p>
+    <p>
+      Внутри своих namespace права полные: логи, вход внутрь пода, рестарт, удаление.
+      Остальные видны в списках, но закрыты.
     </p>
   </section>
 

@@ -55,6 +55,17 @@ if command -v kubectx &>/dev/null; then
   alias kns=kubens
 fi
 
+# ── Где у меня есть права ──────────────────────────────────────
+# kubectl get ns печатает все namespace кластера (в staging их 83),
+# но внутрь почти всех не пустят. kmyns оставляет только те, где
+# реально можно смотреть поды. Проверки идут параллельно (-P 8),
+# иначе на 80+ namespace это минута ожидания.
+kmyns() {
+  command kubectl get ns --no-headers -o custom-columns=':metadata.name' 2>/dev/null \
+    | xargs -P 8 -I{} sh -c 'kubectl auth can-i list pods -n "$1" -q 2>/dev/null && echo "$1"' _ {} \
+    | sort
+}
+
 # ── stern: логи сразу со всех подов, подходящих под маску ──────
 # kubectl logs умеет только один под; stern держит несколько потоков
 # разом, красит каждый под своим цветом и переживает пересоздание пода.
