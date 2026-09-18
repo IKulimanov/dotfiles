@@ -48,6 +48,7 @@ tig/            история, blame и ветки в консоли
 k9s/            TUI для kubernetes: поды, логи, рестарт
 brew/           Brewfile.core (CLI) и Brewfile.apps (GUI)
 macos/          системные настройки через defaults write
+docs/           шпаргалки: k8s-cheatsheet.html — открыть в браузере
 install.sh      интерактивный установщик; --check проверяет, что всё на месте
 Makefile        отдельные операции: make check, link, core, identity, lint
 ```
@@ -276,6 +277,10 @@ Git — всё на `Space g` (which-key подскажет):
 - Файлы больше 5 МБ открываются без подсветки, чтобы nvim не подвисал на логах
 
 ### kubernetes
+
+Полная шпаргалка с пошаговым подключением, клавишами k9s и разбором ошибок —
+`docs/k8s-cheatsheet.html`, открывается в браузере: `open docs/k8s-cheatsheet.html`.
+Ниже — краткая выжимка.
 
 Доступ к кластерам идёт через корпоративный Keycloak (OIDC). `kubectl` сам браузер
 не открывает, за это отвечает плагин `kubelogin` (`kubectl-oidc_login`) — он в Brewfile.

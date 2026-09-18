@@ -1,0 +1,767 @@
+<title>Kubernetes — как работать в консоли</title>
+
+<style>
+  :root {
+    --bg:      #EDF0F1;
+    --surface: #FFFFFF;
+    --sunken:  #F4F6F7;
+    --term-bg: #141D21;
+    --term-fg: #D7E2E4;
+    --ink:     #131A1C;
+    --ink-2:   #465458;
+    --ink-3:   #71858A;
+    --rule:    #D5DDDF;
+    --rule-2:  #E6EBEC;
+    --accent:  #0A6C78;
+    --accent-2:#0A6C7812;
+    --ok:      #2C7A4C;
+    --warn:    #8A5810;
+    --crit:    #A62119;
+    --crit-2:  #A6211910;
+
+    --mono: ui-monospace, "SF Mono", SFMono-Regular, Menlo, Consolas, monospace;
+    --sans: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  }
+
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg:      #0D1214;
+      --surface: #141B1E;
+      --sunken:  #101719;
+      --term-bg: #080C0E;
+      --term-fg: #CBD8DA;
+      --ink:     #E6ECED;
+      --ink-2:   #A0B1B5;
+      --ink-3:   #78898D;
+      --rule:    #253034;
+      --rule-2:  #1C2528;
+      --accent:  #52C4D0;
+      --accent-2:#52C4D016;
+      --ok:      #5FCB8A;
+      --warn:    #E2AC43;
+      --crit:    #FF7165;
+      --crit-2:  #FF716514;
+    }
+  }
+
+  :root[data-theme="dark"] {
+    --bg:      #0D1214;
+    --surface: #141B1E;
+    --sunken:  #101719;
+    --term-bg: #080C0E;
+    --term-fg: #CBD8DA;
+    --ink:     #E6ECED;
+    --ink-2:   #A0B1B5;
+    --ink-3:   #78898D;
+    --rule:    #253034;
+    --rule-2:  #1C2528;
+    --accent:  #52C4D0;
+    --accent-2:#52C4D016;
+    --ok:      #5FCB8A;
+    --warn:    #E2AC43;
+    --crit:    #FF7165;
+    --crit-2:  #FF716514;
+  }
+
+  :root[data-theme="light"] {
+    --bg:      #EDF0F1;
+    --surface: #FFFFFF;
+    --sunken:  #F4F6F7;
+    --term-bg: #141D21;
+    --term-fg: #D7E2E4;
+    --ink:     #131A1C;
+    --ink-2:   #465458;
+    --ink-3:   #71858A;
+    --rule:    #D5DDDF;
+    --rule-2:  #E6EBEC;
+    --accent:  #0A6C78;
+    --accent-2:#0A6C7812;
+    --ok:      #2C7A4C;
+    --warn:    #8A5810;
+    --crit:    #A62119;
+    --crit-2:  #A6211910;
+  }
+
+  body {
+    background: var(--bg);
+    color: var(--ink);
+    font-family: var(--sans);
+    font-size: 16.5px;
+    line-height: 1.6;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  .page {
+    max-width: 50rem;
+    margin: 0 auto;
+    padding: clamp(1.5rem, 4vw, 3.25rem) clamp(1rem, 4vw, 2rem) 6rem;
+  }
+
+  /* ============ Типографика ============ */
+
+  .eyebrow {
+    font-family: var(--mono);
+    font-size: .7rem;
+    font-weight: 600;
+    letter-spacing: .18em;
+    text-transform: uppercase;
+    color: var(--accent);
+  }
+
+  h1 {
+    font-size: clamp(1.8rem, 5vw, 2.6rem);
+    font-weight: 680;
+    letter-spacing: -.021em;
+    line-height: 1.1;
+    text-wrap: balance;
+    margin-top: .5rem;
+  }
+
+  h2 {
+    font-size: 1.32rem;
+    font-weight: 660;
+    letter-spacing: -.012em;
+    line-height: 1.25;
+    text-wrap: balance;
+  }
+
+  h3 {
+    font-size: .98rem;
+    font-weight: 650;
+    letter-spacing: -.004em;
+  }
+
+  p { max-width: 62ch; color: var(--ink-2); }
+  p strong { color: var(--ink); font-weight: 620; }
+
+  /* ============ Каркас ============ */
+
+  .masthead {
+    padding-bottom: 1.5rem;
+    border-bottom: 2px solid var(--ink);
+  }
+  .masthead p { margin-top: .75rem; font-size: 1.04rem; }
+
+  section {
+    padding-top: 2.75rem;
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+  }
+  section > h2 { display: flex; align-items: baseline; gap: .6rem; }
+  section > h2::before {
+    content: "▍";
+    color: var(--accent);
+    font-size: .9em;
+    line-height: 1;
+  }
+
+  /* ============ Терминал ============ */
+
+  .term {
+    background: var(--term-bg);
+    border-radius: 5px;
+    padding: .95rem 1.1rem;
+    overflow-x: auto;
+    font-family: var(--mono);
+    font-size: .855rem;
+    line-height: 1.8;
+    color: var(--term-fg);
+    tab-size: 2;
+  }
+  .term b  { color: #7FD8E4; font-weight: 600; }          /* команда */
+  .term i  { color: #6C8087; font-style: normal; }         /* комментарий */
+  .term u  { color: #8FD9A8; text-decoration: none; }      /* хороший вывод */
+  .term s  { color: #FF8A7E; text-decoration: none; }      /* ошибка */
+  .term .dim { color: #55686E; }
+
+  /* ============ Шаги ============ */
+
+  .steps { display: flex; flex-direction: column; gap: 1.5rem; }
+
+  .step {
+    display: grid;
+    grid-template-columns: 2rem minmax(0, 1fr);
+    gap: 0 1rem;
+  }
+  .step .num {
+    font-family: var(--mono);
+    font-size: .82rem;
+    font-weight: 700;
+    color: var(--accent);
+    background: var(--accent-2);
+    border-radius: 50%;
+    width: 2rem;
+    height: 2rem;
+    display: grid;
+    place-items: center;
+    align-self: start;
+  }
+  .step .body { display: flex; flex-direction: column; gap: .6rem; padding-top: .18rem; min-width: 0; }
+  .step h3 { margin: 0; }
+
+  /* ============ Команды ============ */
+
+  .cmds {
+    display: flex;
+    flex-direction: column;
+    background: var(--surface);
+    border: 1px solid var(--rule);
+    border-radius: 5px;
+    overflow: hidden;
+  }
+  .cmds .row {
+    display: flex;
+    flex-direction: column;
+    gap: .1rem;
+    padding: .62rem .95rem;
+    border-top: 1px solid var(--rule-2);
+    min-width: 0;
+  }
+  .cmds .row:first-child { border-top: none; }
+  .cmds .row > code {
+    font-family: var(--mono);
+    font-size: .855rem;
+    font-weight: 620;
+    color: var(--accent);
+    overflow-wrap: anywhere;
+  }
+  .cmds .row > span { color: var(--ink-2); font-size: .91rem; }
+  .cmds .row > span em { font-style: normal; color: var(--ink-3); }
+
+  @media (min-width: 46rem) {
+    .cmds .row {
+      display: grid;
+      grid-template-columns: 14rem minmax(0, 1fr);
+      gap: 0 1.25rem;
+      align-items: baseline;
+    }
+  }
+
+  /* ============ Клавиши ============ */
+
+  .keys {
+    display: flex;
+    flex-direction: column;
+    background: var(--surface);
+    border: 1px solid var(--rule);
+    border-radius: 5px;
+    overflow: hidden;
+  }
+  .keys .row {
+    display: grid;
+    grid-template-columns: 7.5rem minmax(0, 1fr);
+    gap: 0 1rem;
+    padding: .5rem .95rem;
+    border-top: 1px solid var(--rule-2);
+    align-items: baseline;
+  }
+  .keys .row:first-child { border-top: none; }
+  .keys .row > span { color: var(--ink-2); font-size: .91rem; }
+
+  kbd {
+    font-family: var(--mono);
+    font-size: .79rem;
+    font-weight: 620;
+    background: var(--sunken);
+    border: 1px solid var(--rule);
+    border-bottom-width: 2px;
+    border-radius: 3px;
+    padding: .1rem .4rem;
+    color: var(--ink);
+    white-space: nowrap;
+  }
+
+  /* ============ Выноски ============ */
+
+  .callout {
+    display: grid;
+    grid-template-columns: 3px minmax(0, 1fr);
+    gap: 0 1rem;
+    border-radius: 4px;
+    overflow: hidden;
+    background: var(--accent-2);
+  }
+  .callout::before { content: ""; background: var(--accent); }
+  .callout .inner { padding: .85rem 1rem .9rem 0; display: flex; flex-direction: column; gap: .45rem; }
+  .callout .label {
+    font-family: var(--mono);
+    font-size: .7rem;
+    font-weight: 700;
+    letter-spacing: .13em;
+    text-transform: uppercase;
+    color: var(--accent);
+  }
+  .callout p { font-size: .93rem; }
+
+  .callout.danger { background: var(--crit-2); }
+  .callout.danger::before { background: var(--crit); }
+  .callout.danger .label { color: var(--crit); }
+
+  /* ============ Промпт ============ */
+
+  .prompts { display: flex; flex-wrap: wrap; gap: .45rem; }
+  .chip {
+    font-family: var(--mono);
+    font-size: .79rem;
+    font-weight: 620;
+    padding: .26rem .6rem;
+    border-radius: 3px;
+    white-space: nowrap;
+  }
+  .chip.prod    { background: var(--crit); color: #FFF; }
+  .chip.stage   { background: var(--ok);   color: #06120B; }
+  .chip.unknown { background: var(--warn); color: #170F03; }
+
+  /* ============ Namespace ============ */
+
+  .ns {
+    background: var(--surface);
+    border: 1px solid var(--rule);
+    border-radius: 5px;
+    padding: .8rem .95rem;
+    display: flex;
+    flex-direction: column;
+    gap: .3rem;
+  }
+  .ns div {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    gap: .5rem;
+    font-family: var(--mono);
+    font-size: .855rem;
+    color: var(--ink);
+  }
+  .ns .tag {
+    font-family: var(--sans);
+    font-size: .76rem;
+    color: var(--ink-3);
+  }
+
+  /* ============ Диагностика ============ */
+
+  .diag { display: flex; flex-direction: column; gap: 1.15rem; }
+  .diag > div { display: flex; flex-direction: column; gap: .3rem; min-width: 0; }
+  .diag .sym {
+    font-family: var(--mono);
+    font-size: .845rem;
+    font-weight: 620;
+    color: var(--crit);
+    overflow-wrap: anywhere;
+  }
+  .diag .fix { color: var(--ink-2); font-size: .93rem; max-width: 64ch; }
+
+  code.inl {
+    font-family: var(--mono);
+    font-size: .88em;
+    font-weight: 600;
+    color: var(--accent);
+    overflow-wrap: anywhere;
+  }
+
+  footer {
+    margin-top: 3.5rem;
+    padding-top: 1.2rem;
+    border-top: 1px solid var(--rule);
+    display: flex;
+    flex-direction: column;
+    gap: .3rem;
+    font-family: var(--mono);
+    font-size: .78rem;
+    color: var(--ink-3);
+  }
+
+  a { color: var(--accent); }
+  a:focus-visible, kbd:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+  @media (prefers-reduced-motion: reduce) {
+    * { animation: none !important; transition: none !important; }
+  }
+</style>
+
+<div class="page">
+
+  <header class="masthead">
+    <div class="eyebrow">nurtelecom · kubernetes</div>
+    <h1>Как работать с кластером из консоли</h1>
+    <p>
+      От «открыл терминал» до «посмотрел логи и перезапустил сервис».
+      Все команды здесь — рабочие: алиасы лежат в
+      <code class="inl">~/dotfiles/zsh/.config/zsh/conf.d/40-k8s.zsh</code>.
+    </p>
+  </header>
+
+  <!-- ==================== ПОДКЛЮЧЕНИЕ ==================== -->
+  <section>
+    <h2>Как подключиться</h2>
+    <p>
+      Отдельно «подключаться» не нужно — нет команды логина, после которой ты «внутри».
+      Просто набираешь команду, и если сессия протухла, тебя сами отправят в браузер.
+      Вот как это выглядит в первый раз за день.
+    </p>
+
+    <div class="steps">
+
+      <div class="step">
+        <div class="num">1</div>
+        <div class="body">
+          <h3>Проверь, что ты в рабочей сети</h3>
+          <p>
+            Кластеры внутренние, из интернета не видны. Нужен офисный Wi-Fi или VPN.
+            Если сети нет — команды отвалятся по таймауту.
+          </p>
+        </div>
+      </div>
+
+      <div class="step">
+        <div class="num">2</div>
+        <div class="body">
+          <h3>Посмотри, в каком ты кластере</h3>
+          <p>Контекст всегда виден в промпте, слева от строки ввода:</p>
+          <div class="prompts">
+            <span class="chip stage">staging.nurtelecom.k8s</span>
+            <span class="chip prod">PROD:nur-prod</span>
+            <span class="chip unknown">billing.nurtelecom.k8s</span>
+          </div>
+          <p>
+            Зелёный — staging, работай спокойно. Красный — прод.
+            Жёлтый — кластер, по имени которого не понять, что за среда; считай его продом.
+          </p>
+        </div>
+      </div>
+
+      <div class="step">
+        <div class="num">3</div>
+        <div class="body">
+          <h3>Набери любую команду</h3>
+          <p>Самая простая — показать поды:</p>
+          <div class="term"><b>kgp</b></div>
+          <p>
+            Если сессия ещё жива, сразу появится список. Если протухла — увидишь строку
+            про запуск браузера, и откроется вкладка Keycloak.
+          </p>
+        </div>
+      </div>
+
+      <div class="step">
+        <div class="num">4</div>
+        <div class="body">
+          <h3>Войди в браузере</h3>
+          <p>
+            Логин и пароль — рабочие, те же что от корпоративных систем.
+            После входа в браузере напишет <b>Authenticated</b>, вкладку можно закрыть.
+            Возвращайся в терминал — команда выполнится сама.
+          </p>
+          <div class="term"><b>kgp</b>
+<span class="dim">Open </span>Launching a browser...
+<i># ...входишь в браузере, возвращаешься сюда...</i>
+
+NAME                                             READY   STATUS    RESTARTS   AGE
+business-m2m-gateway-incident-85b5dcb956-xf9mb   1/1     <u>Running</u>   0          36d
+business-m2m-gateway-kpi-7d9ddccb4b-4k97x        1/1     <u>Running</u>   1          36d
+business-m2m-gateway-tb-7d56dd5957-mh2k8         1/1     <u>Running</u>   0          36d</div>
+          <p>
+            Дальше токен обновляется в фоне сам. Логин в браузере понадобится
+            снова только после долгого перерыва.
+          </p>
+        </div>
+      </div>
+
+    </div>
+
+    <div class="callout">
+      <div class="inner">
+        <span class="label">Проверить, кто ты</span>
+        <p>
+          <code class="inl">kubectl auth whoami</code> покажет, под какой учёткой ты зашёл
+          и в какой группе состоишь. <code class="inl">kubectl auth can-i --list</code> —
+          что тебе здесь разрешено.
+        </p>
+      </div>
+    </div>
+  </section>
+
+  <!-- ==================== ГДЕ Я ==================== -->
+  <section>
+    <h2>Где я сейчас и как переключиться</h2>
+    <p>
+      Два уровня: <strong>кластер</strong> (он же контекст) и <strong>namespace</strong> внутри него.
+      Почти все команды работают в текущем namespace — если ошибиться, получишь «access denied».
+    </p>
+
+    <div class="cmds">
+      <div class="row"><code>kctx</code><span>сменить кластер — без аргумента откроется список</span></div>
+      <div class="row"><code>kns</code><span>сменить namespace — тоже списком, ищется по буквам</span></div>
+      <div class="row"><code>kubectl config get-contexts</code><span>все кластеры и их namespace таблицей</span></div>
+      <div class="row"><code>kubectl auth whoami</code><span>кем ты видишься кластеру</span></div>
+    </div>
+
+    <h3>Namespace, где у тебя есть права</h3>
+    <div class="ns">
+      <div>staging-business-m2m-gateway <span class="tag">открывается по умолчанию</span></div>
+      <div>staging-apps-monitoring-service</div>
+      <div>staging-cockpit-testing-management</div>
+      <div>staging-education</div>
+      <div>staging-myo-flow-event</div>
+    </div>
+    <p>
+      Остальные 78 namespace кластера видны в списках, но внутри всё закрыто.
+      В своих права полные: логи, вход внутрь пода, рестарт, удаление.
+    </p>
+  </section>
+
+  <!-- ==================== СМОТРЕТЬ ==================== -->
+  <section>
+    <h2>Посмотреть, что происходит</h2>
+
+    <div class="cmds">
+      <div class="row"><code>kgp</code><span>поды: готовность, статус, сколько раз перезапускались, возраст</span></div>
+      <div class="row"><code>kgpw</code><span>то же плюс нода и IP</span></div>
+      <div class="row"><code>kgd</code><span>деплойменты: сколько реплик поднято из скольких нужно</span></div>
+      <div class="row"><code>kgs</code><span>сервисы и порты</span></div>
+      <div class="row"><code>ktop</code><span>CPU и память по подам</span></div>
+      <div class="row"><code>kev</code><span>события кластера по времени <em>— сюда смотреть, когда под не поднялся</em></span></div>
+      <div class="row"><code>kd pod &lt;имя&gt;</code><span>подробности пода: образ, лимиты, причина падения</span></div>
+    </div>
+
+    <div class="callout">
+      <div class="inner">
+        <span class="label">Как читать вывод kgp</span>
+        <p>
+          <strong>READY 1/1</strong> — контейнер поднят и прошёл проверку.
+          <strong>RESTARTS</strong> больше нуля — под падал, смотри
+          <code class="inl">klp</code> (лог прошлого запуска).
+          <strong>STATUS</strong> кроме Running — <code class="inl">kev</code> объяснит причину.
+        </p>
+      </div>
+    </div>
+  </section>
+
+  <!-- ==================== ЛОГИ ОДНОГО ==================== -->
+  <section>
+    <h2>Логи одного пода</h2>
+
+    <div class="cmds">
+      <div class="row"><code>klf &lt;под&gt;</code><span>следить за логом вживую, последние 200 строк</span></div>
+      <div class="row"><code>kl &lt;под&gt;</code><span>просто вывести лог и выйти</span></div>
+      <div class="row"><code>klp &lt;под&gt;</code><span>лог <em>предыдущего</em> запуска — когда под упал и поднялся заново</span></div>
+      <div class="row"><code>kl &lt;под&gt; --since=1h</code><span>только за последний час</span></div>
+    </div>
+
+    <p>Имя пода набирать целиком не обязательно — есть автодополнение по <kbd>Tab</kbd>.</p>
+
+    <div class="callout">
+      <div class="inner">
+        <span class="label">Выйти из слежения</span>
+        <p><kbd>Ctrl</kbd> + <kbd>C</kbd>. Работает и для <code class="inl">klf</code>, и для stern ниже.</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- ==================== ЛОГИ НЕСКОЛЬКИХ ==================== -->
+  <section>
+    <h2>Логи сразу с нескольких подов</h2>
+    <p>
+      <code class="inl">kubectl logs</code> умеет только один под. Когда у сервиса
+      несколько реплик или надо следить за группой сервисов — это <strong>stern</strong>.
+      Он держит все потоки разом, красит каждый под своим цветом и не отваливается,
+      когда под пересоздают.
+    </p>
+
+    <div class="term"><b>sl</b> business-m2m-gateway
+<span class="dim">+ business-m2m-gateway-tb-7d56dd5957-mh2k8 › business-m2m-gateway-tb</span>
+<span class="dim">+ business-m2m-gateway-kpi-7d9ddccb4b-4k97x › business-m2m-gateway-kpi</span>
+<span class="dim">+ business-m2m-gateway-incident-85b5dcb956-xf9mb › business-m2m-gateway-incident</span>
+<i># дальше идут строки логов, перед каждой — имя пода своим цветом</i></div>
+
+    <div class="cmds">
+      <div class="row"><code>sl gateway</code><span>все поды, в имени которых есть «gateway»</span></div>
+      <div class="row"><code>sl deploy/my-service</code><span>все поды одного деплоймента</span></div>
+      <div class="row"><code>sls app=my-service</code><span>по метке, а не по имени</span></div>
+      <div class="row"><code>sl gateway -s 15m</code><span>начиная с событий 15-минутной давности</span></div>
+      <div class="row"><code>sl gateway --no-follow</code><span>вывести и выйти, без слежения</span></div>
+      <div class="row"><code>sl gateway -i ERROR</code><span>только строки со словом ERROR</span></div>
+      <div class="row"><code>sl gateway -E healthcheck</code><span>наоборот, спрятать строки с healthcheck</span></div>
+      <div class="row"><code>sl . -n staging-education</code><span>вообще всё в другом namespace</span></div>
+    </div>
+
+    <div class="callout">
+      <div class="inner">
+        <span class="label">Логи в формате JSON</span>
+        <p>
+          Сервисы пишут ECS-логи одной длинной строкой. Чтобы читать глазами только текст сообщения:
+          <code class="inl">sl gateway -o raw | jq -r '.message'</code>
+        </p>
+      </div>
+    </div>
+  </section>
+
+  <!-- ==================== FZF ==================== -->
+  <section>
+    <h2>Когда не помнишь имя пода</h2>
+    <p>Три команды открывают список подов с поиском по буквам. Стрелки или продолжай печатать, <kbd>Enter</kbd> — выбрать, <kbd>Esc</kbd> — отменить.</p>
+
+    <div class="cmds">
+      <div class="row"><code>klog</code><span>выбрать под → смотреть его логи вживую</span></div>
+      <div class="row"><code>kssh</code><span>выбрать под → зайти внутрь него</span></div>
+      <div class="row"><code>kdel</code><span>выбрать под → удалить, деплоймент поднимет новый</span></div>
+    </div>
+    <p>Справа в списке показывается описание выделенного пода, чтобы не выбрать не тот.</p>
+  </section>
+
+  <!-- ==================== K9S ==================== -->
+  <section>
+    <h2>k9s — весь кластер в одном окне</h2>
+    <p>
+      Полноэкранный интерфейс, как lazygit, только для кластера. Удобен, когда надо
+      не одну команду выполнить, а «посидеть и посмотреть»: что живо, что падает,
+      открыть логи, перезапустить.
+    </p>
+
+    <h3>Как зайти и как выйти</h3>
+    <div class="term"><b>k9s</b>            <i># откроется на подах текущего namespace</i>
+<b>k9s</b> --readonly <i># без права что-либо менять — для чужого кластера</i>
+<b>k9s</b> -n staging-education <i># сразу в нужном namespace</i></div>
+    <p>
+      Выход — <kbd>:q</kbd> и <kbd>Enter</kbd>, либо <kbd>Ctrl</kbd> + <kbd>C</kbd>.
+      <kbd>Esc</kbd> возвращает на шаг назад, не выходя из программы.
+    </p>
+
+    <h3>Что нажимать внутри</h3>
+    <p>
+      Команды начинаются с двоеточия — набираешь <kbd>:</kbd>, имя ресурса, <kbd>Enter</kbd>.
+      Перемещение по списку — стрелки или <kbd>j</kbd> / <kbd>k</kbd>.
+    </p>
+
+    <div class="keys">
+      <div class="row"><span><kbd>:po</kbd></span><span>список подов — основной вид</span></div>
+      <div class="row"><span><kbd>:deploy</kbd></span><span>деплойменты</span></div>
+      <div class="row"><span><kbd>:svc</kbd></span><span>сервисы</span></div>
+      <div class="row"><span><kbd>:ns</kbd></span><span>сменить namespace</span></div>
+      <div class="row"><span><kbd>:ctx</kbd></span><span>сменить кластер</span></div>
+      <div class="row"><span><kbd>/</kbd></span><span>отфильтровать список по тексту</span></div>
+      <div class="row"><span><kbd>Enter</kbd></span><span>провалиться внутрь выбранного</span></div>
+      <div class="row"><span><kbd>l</kbd></span><span>логи пода</span></div>
+      <div class="row"><span><kbd>Shift</kbd>+<kbd>L</kbd></span><span>логи предыдущего запуска</span></div>
+      <div class="row"><span><kbd>d</kbd></span><span>подробное описание</span></div>
+      <div class="row"><span><kbd>y</kbd></span><span>показать yaml целиком</span></div>
+      <div class="row"><span><kbd>s</kbd></span><span>открыть шелл внутри пода</span></div>
+      <div class="row"><span><kbd>Ctrl</kbd>+<kbd>D</kbd></span><span>удалить — спросит подтверждение</span></div>
+      <div class="row"><span><kbd>?</kbd></span><span>все клавиши текущего вида</span></div>
+    </div>
+
+    <div class="callout">
+      <div class="inner">
+        <span class="label">Настроено под чтение логов</span>
+        <p>
+          Хвост поднят до 200 строк, длинные строки переносятся, у каждой показано время.
+          Иначе JSON-логи и стектрейсы обрезаются на середине.
+        </p>
+      </div>
+    </div>
+  </section>
+
+  <!-- ==================== РЕСТАРТ ==================== -->
+  <section>
+    <h2>Перезапустить сервис</h2>
+
+    <div class="cmds">
+      <div class="row"><code>krr &lt;deployment&gt;</code><span>rolling restart: реплики меняются по очереди, сервис не проседает</span></div>
+      <div class="row"><code>krs &lt;deployment&gt;</code><span>следить, как идёт выкатка</span></div>
+      <div class="row"><code>krh &lt;deployment&gt;</code><span>история выкаток</span></div>
+      <div class="row"><code>kdel</code><span>выбрать и убить один под — грубее, но быстрее</span></div>
+    </div>
+
+    <div class="callout">
+      <div class="inner">
+        <span class="label">Имя деплоймента ≠ имя пода</span>
+        <p>
+          У пода на конце хеш и случайный суффикс. Отбрось их:<br>
+          под <code class="inl">business-m2m-gateway-tb-7d56dd5957-mh2k8</code> →
+          деплоймент <code class="inl">business-m2m-gateway-tb</code>.<br>
+          Список деплойментов без угадывания — <code class="inl">kgd</code>.
+        </p>
+      </div>
+    </div>
+
+    <div class="callout danger">
+      <div class="inner">
+        <span class="label">Перед рестартом</span>
+        <p>
+          Посмотри на цвет контекста в промпте. Красный и метка <code class="inl">PROD:</code>
+          означают, что ты в проде и рестарт увидят пользователи.
+        </p>
+      </div>
+    </div>
+  </section>
+
+  <!-- ==================== ВНУТРЬ ==================== -->
+  <section>
+    <h2>Зайти внутрь пода и пробросить порт</h2>
+
+    <div class="cmds">
+      <div class="row"><code>kssh</code><span>выбрать под из списка и зайти внутрь</span></div>
+      <div class="row"><code>kex &lt;под&gt; -- sh</code><span>то же, если имя пода уже знаешь</span></div>
+      <div class="row"><code>kpf &lt;под&gt; 8080:8080</code><span>порт пода доступен на localhost:8080</span></div>
+      <div class="row"><code>kpf svc/&lt;сервис&gt; 8080:80</code><span>проброс на сервис, а не конкретный под</span></div>
+    </div>
+    <p>Выйти из пода — <code class="inl">exit</code>. Остановить проброс — <kbd>Ctrl</kbd> + <kbd>C</kbd>.</p>
+  </section>
+
+  <!-- ==================== ОШИБКИ ==================== -->
+  <section>
+    <h2>Если что-то не работает</h2>
+
+    <div class="diag">
+      <div>
+        <span class="sym">error: You must be logged in to the server (Unauthorized)</span>
+        <span class="fix">
+          Сессия Keycloak истекла. Набери любую команду — откроется браузер, войди рабочей
+          учёткой. Дальше всё продолжится само.
+        </span>
+      </div>
+      <div>
+        <span class="sym">access denied for user on resource "":v1/pods in namespace "default"</span>
+        <span class="fix">
+          Ты в namespace, где у тебя нет прав. Переключись: <code class="inl">kns</code> —
+          и выбери один из своих пяти (список выше).
+        </span>
+      </div>
+      <div>
+        <span class="sym">Unable to connect to the server: dial tcp ... i/o timeout</span>
+        <span class="fix">
+          Нет доступа к внутренней сети. Проверь Wi-Fi или подключись к VPN.
+        </span>
+      </div>
+      <div>
+        <span class="sym">command not found: k · command not found: sl</span>
+        <span class="fix">
+          Алиасы подхватываются при старте шелла. После правки конфига выполни
+          <code class="inl">exec zsh</code> или открой новую вкладку терминала.
+        </span>
+      </div>
+      <div>
+        <span class="sym">Lens: executable oidc-login not found</span>
+        <span class="fix">
+          Приложения из Dock не видят PATH терминала. Запускай Lens командой
+          <code class="inl">open -a Lens</code>.
+        </span>
+      </div>
+      <div>
+        <span class="sym">error: arguments in resource/name form must have a single resource and name</span>
+        <span class="fix">
+          Обычно это <code class="inl">krr</code> с именем пода вместо деплоймента.
+          Посмотри правильные имена: <code class="inl">kgd</code>.
+        </span>
+      </div>
+    </div>
+  </section>
+
+  <footer>
+    <span>алиасы — ~/dotfiles/zsh/.config/zsh/conf.d/40-k8s.zsh</span>
+    <span>настройки k9s — ~/dotfiles/k9s/.config/k9s/config.yaml</span>
+    <span>доступы — ~/.kube/config, в git не хранятся</span>
+  </footer>
+
+</div>
