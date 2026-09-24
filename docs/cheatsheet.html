@@ -1,0 +1,992 @@
+<title>Шпаргалка по dotfiles</title>
+
+<style>
+/* ───────────────────────────────────────────────────────────
+   Палитра — Catppuccin, та же, что в nvim и bat этого конфига.
+   :root = Latte (светлая). Тёмная = Mocha, переопределяет только токены.
+   ─────────────────────────────────────────────────────────── */
+:root {
+  --bg:        #eff1f5;
+  --bg-header: #e6e9efee;
+  --panel:     #ffffff;
+  --line:      #ccd0da;
+  --line-soft: #dce0e8;
+  --ink:       #4c4f69;
+  --ink-dim:   #6c6f85;
+  --ink-faint: #8c8fa1;
+  --key-bg:    #eff1f5;
+  --key-line:  #bcc0cc;
+  --key-ink:   #4c4f69;
+
+  --shell: #1e66f5;
+  --git:   #d9640b;
+  --vim:   #8839ef;
+  --tui:   #179299;
+  --ops:   #40a02b;
+  /* Catppuccin Latte yellow (#df8e1d) не читается как мелкий текст на светлом
+     фоне, поэтому здесь затемнённый вариант того же семейства. */
+  --sec:   #96650a;
+  --warn:  #d20f39;
+
+  --shell-wash: #1e66f514;
+  --git-wash:   #d9640b14;
+  --vim-wash:   #8839ef14;
+  --tui-wash:   #17929914;
+  --ops-wash:   #40a02b14;
+  --sec-wash:   #96650a14;
+
+  --radius: 8px;
+  /* Только системные и уже установленные шрифты: страница обязана
+     открываться без интернета. Моноширинный — тот же MesloLGS Nerd Font,
+     которым набран сам терминал, поэтому клавиши выглядят один в один. */
+  --f-sans:    -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", Roboto, sans-serif;
+  --f-display: ui-serif, "New York", "Iowan Old Style", Georgia, serif;
+  --f-mono:    "MesloLGS Nerd Font Mono", "MesloLGS NF", ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg:        #1e1e2e;
+    --bg-header: #181825ee;
+    --panel:     #24243440;
+    --line:      #313244;
+    --line-soft: #2a2a3c;
+    --ink:       #cdd6f4;
+    --ink-dim:   #a6adc8;
+    --ink-faint: #7f849c;
+    --key-bg:    #313244;
+    --key-line:  #45475a;
+    --key-ink:   #cdd6f4;
+
+    --shell: #89b4fa;
+    --git:   #fab387;
+    --vim:   #cba6f7;
+    --tui:   #94e2d5;
+    --ops:   #a6e3a1;
+    --sec:   #f9e2af;
+    --warn:  #f38ba8;
+
+    --shell-wash: #89b4fa1a;
+    --git-wash:   #fab3871a;
+    --vim-wash:   #cba6f71a;
+    --tui-wash:   #94e2d51a;
+    --ops-wash:   #a6e3a11a;
+    --sec-wash:   #f9e2af1a;
+  }
+}
+
+:root[data-theme="dark"] {
+  --bg:        #1e1e2e;
+  --bg-header: #181825ee;
+  --panel:     #24243440;
+  --line:      #313244;
+  --line-soft: #2a2a3c;
+  --ink:       #cdd6f4;
+  --ink-dim:   #a6adc8;
+  --ink-faint: #7f849c;
+  --key-bg:    #313244;
+  --key-line:  #45475a;
+  --key-ink:   #cdd6f4;
+
+  --shell: #89b4fa;
+  --git:   #fab387;
+  --vim:   #cba6f7;
+  --tui:   #94e2d5;
+  --ops:   #a6e3a1;
+  --sec:   #f9e2af;
+  --warn:  #f38ba8;
+
+  --shell-wash: #89b4fa1a;
+  --git-wash:   #fab3871a;
+  --vim-wash:   #cba6f71a;
+  --tui-wash:   #94e2d51a;
+  --ops-wash:   #a6e3a11a;
+  --sec-wash:   #f9e2af1a;
+}
+
+/* ─── Каркас ─────────────────────────────────────────────── */
+body {
+  background: var(--bg);
+  color: var(--ink);
+  font-family: var(--f-sans);
+  font-size: 14px;
+  line-height: 1.45;
+  -webkit-font-smoothing: antialiased;
+}
+
+.wrap { max-width: 1760px; margin: 0 auto; padding: 0 20px 72px; }
+
+/* ─── Шапка ──────────────────────────────────────────────── */
+.bar {
+  position: sticky; top: 0; z-index: 20;
+  background: var(--bg-header);
+  backdrop-filter: blur(10px);
+  border-bottom: 1px solid var(--line);
+  margin: 0 -20px 22px;
+  padding: 10px 20px;
+  display: flex; flex-wrap: wrap; align-items: center; gap: 10px 18px;
+}
+.brand { display: flex; align-items: baseline; gap: 10px; margin-right: auto; }
+.brand h1 {
+  font-family: var(--f-display);
+  font-size: 16px; font-weight: 600; letter-spacing: -0.005em; margin: 0;
+  text-wrap: balance;
+}
+.brand .sub {
+  font-family: var(--f-mono); font-size: 11px; color: var(--ink-faint);
+}
+
+.find { position: relative; display: flex; align-items: center; }
+.find input {
+  font-family: var(--f-mono); font-size: 12.5px;
+  color: var(--ink); background: var(--panel);
+  border: 1px solid var(--line); border-radius: 6px;
+  padding: 6px 60px 6px 11px; width: 260px;
+}
+.find input::placeholder { color: var(--ink-faint); }
+.find input:focus { outline: 2px solid var(--shell); outline-offset: 1px; border-color: transparent; }
+.find .hint {
+  position: absolute; right: 9px; pointer-events: none;
+  font-family: var(--f-mono); font-size: 10.5px; color: var(--ink-faint);
+}
+
+.jump { display: flex; flex-wrap: wrap; gap: 6px; }
+.jump a {
+  font-size: 11.5px; font-weight: 500; text-decoration: none;
+  color: var(--ink-dim); border: 1px solid var(--line);
+  border-radius: 999px; padding: 3px 11px;
+}
+.jump a:hover { color: var(--ink); border-color: var(--ink-faint); }
+.jump a:focus-visible { outline: 2px solid var(--shell); outline-offset: 2px; }
+.jump a[data-c="shell"]:hover { color: var(--shell); border-color: var(--shell); }
+.jump a[data-c="git"]:hover   { color: var(--git);   border-color: var(--git); }
+.jump a[data-c="tui"]:hover   { color: var(--tui);   border-color: var(--tui); }
+.jump a[data-c="vim"]:hover   { color: var(--vim);   border-color: var(--vim); }
+.jump a[data-c="ops"]:hover   { color: var(--ops);   border-color: var(--ops); }
+.jump a[data-c="sec"]:hover   { color: var(--sec);   border-color: var(--sec); }
+
+/* ─── Разделы ────────────────────────────────────────────── */
+.sec { scroll-margin-top: 64px; margin-bottom: 34px; }
+.sec-head {
+  display: flex; align-items: baseline; gap: 12px;
+  padding: 0 0 8px 12px;
+  border-left: 3px solid var(--accent);
+  margin-bottom: 14px;
+}
+.sec-head h2 {
+  font-family: var(--f-display);
+  font-size: 19px; font-weight: 600; letter-spacing: -0.005em; margin: 0;
+  color: var(--accent);
+}
+.sec-head p { margin: 0; font-size: 12.5px; color: var(--ink-dim); max-width: 62ch; }
+
+.sec[data-c="shell"] { --accent: var(--shell); --wash: var(--shell-wash); }
+.sec[data-c="git"]   { --accent: var(--git);   --wash: var(--git-wash); }
+.sec[data-c="tui"]   { --accent: var(--tui);   --wash: var(--tui-wash); }
+.sec[data-c="vim"]   { --accent: var(--vim);   --wash: var(--vim-wash); }
+.sec[data-c="ops"]   { --accent: var(--ops);   --wash: var(--ops-wash); }
+.sec[data-c="sec"]   { --accent: var(--sec);   --wash: var(--sec-wash); }
+
+.grid {
+  display: grid; gap: 14px;
+  grid-template-columns: repeat(auto-fill, minmax(330px, 1fr));
+  align-items: start;
+}
+
+/* ─── Панель ─────────────────────────────────────────────── */
+.p {
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  padding: 12px 14px 13px;
+  overflow-x: auto;
+}
+.p > h3 {
+  font-size: 10.5px; font-weight: 600; text-transform: uppercase;
+  letter-spacing: 0.09em; color: var(--accent);
+  margin: 0 0 9px;
+}
+.p > .note {
+  margin: 9px 0 0; padding-top: 9px; border-top: 1px dashed var(--line);
+  font-size: 12px; color: var(--ink-dim);
+}
+.p.wide { grid-column: span 2; }
+@media (max-width: 760px) { .p.wide { grid-column: span 1; } }
+
+/* Строки: общий грид на панель, чтобы колонка ключей была ровной */
+.rows { display: grid; grid-template-columns: minmax(0, max-content) minmax(0, 1fr); column-gap: 14px; }
+.row { display: contents; }
+.row > * { padding: 3.5px 0; border-top: 1px solid var(--line-soft); }
+.row:first-of-type > * { border-top: 0; padding-top: 0; }
+.row > .d { color: var(--ink-dim); font-size: 12.5px; }
+.row > .k { white-space: normal; }
+
+/* ─── Клавиши и команды ──────────────────────────────────── */
+kbd {
+  display: inline-block;
+  font-family: var(--f-mono); font-size: 11.5px; font-weight: 500;
+  line-height: 1.3;
+  color: var(--key-ink); background: var(--key-bg);
+  border: 1px solid var(--key-line); border-bottom-width: 2px;
+  border-radius: 4px; padding: 1px 5px;
+  white-space: nowrap;
+}
+code {
+  font-family: var(--f-mono); font-size: 12px; font-weight: 500;
+  color: var(--accent, var(--ink));
+  white-space: nowrap;
+}
+.d code { color: var(--ink); font-weight: 400; white-space: normal; }
+.sep { color: var(--ink-faint); font-size: 11px; padding: 0 1px; }
+.tag {
+  font-family: var(--f-mono); font-size: 10px; font-weight: 500;
+  color: var(--warn); border: 1px solid var(--warn); border-radius: 3px;
+  padding: 0 4px; margin-left: 6px; white-space: nowrap;
+}
+
+/* ─── Пути ───────────────────────────────────────────────── */
+.paths .row > .k code { color: var(--ink); }
+.paths .row > .d { font-size: 12px; }
+
+/* ─── Пусто ──────────────────────────────────────────────── */
+.empty {
+  display: none; padding: 40px 4px; color: var(--ink-dim);
+  font-family: var(--f-mono); font-size: 13px;
+}
+body.filtering .sec:not(.has-hit) { display: none; }
+body.filtering .p:not(.has-hit)   { display: none; }
+body.no-hits .empty { display: block; }
+
+footer {
+  margin-top: 34px; padding-top: 14px; border-top: 1px solid var(--line);
+  font-size: 11.5px; color: var(--ink-faint);
+  display: flex; flex-wrap: wrap; gap: 4px 18px;
+}
+footer code { color: var(--ink-faint); }
+
+@media (prefers-reduced-motion: reduce) {
+  * { animation: none !important; transition: none !important; }
+}
+
+@media print {
+  .bar, footer { display: none; }
+  body { background: #fff; color: #000; font-size: 10px; }
+  .grid { grid-template-columns: repeat(3, 1fr); }
+  .p { break-inside: avoid; border-color: #bbb; }
+}
+</style>
+
+<div class="wrap">
+
+  <header class="bar">
+    <div class="brand">
+      <h1>Шпаргалка по dotfiles</h1>
+      <span class="sub">zsh · git · nvim · sec</span>
+    </div>
+    <div class="find">
+      <input id="q" type="search" placeholder="фильтр по всей странице" aria-label="Фильтр" autocomplete="off" spellcheck="false">
+      <span class="hint" id="hint">/</span>
+    </div>
+    <nav class="jump">
+      <a href="#shell" data-c="shell">Шелл</a>
+      <a href="#git" data-c="git">Git</a>
+      <a href="#lazygit" data-c="git">lazygit</a>
+      <a href="#tig" data-c="tui">tig</a>
+      <a href="#vim" data-c="vim">Neovim</a>
+      <a href="#secrets" data-c="sec">Секреты</a>
+      <a href="#ops" data-c="ops">Установка</a>
+      <a href="#paths" data-c="ops">Файлы</a>
+    </nav>
+  </header>
+
+  <p class="empty">ничего не нашлось — Esc сбрасывает фильтр</p>
+
+  <!-- ═══════════════ ШЕЛЛ ═══════════════ -->
+  <section class="sec" id="shell" data-c="shell">
+    <div class="sec-head">
+      <h2>Шелл</h2>
+      <p>zsh с Oh-My-Zsh и Powerlevel10k. Конфиг разложен по <code>conf.d/</code>, история и кеши живут вне репозитория.</p>
+    </div>
+    <div class="grid">
+
+      <div class="p">
+        <h3>Поиск и переходы</h3>
+        <div class="rows">
+          <div class="row"><div class="k"><kbd>Ctrl</kbd>+<kbd>R</kbd></div><div class="d">поиск по истории через fzf</div></div>
+          <div class="row"><div class="k"><kbd>Ctrl</kbd>+<kbd>T</kbd></div><div class="d">вставить путь к файлу, превью через bat</div></div>
+          <div class="row"><div class="k"><kbd>Alt</kbd>+<kbd>C</kbd></div><div class="d">перейти в каталог, превью дерева через eza</div></div>
+          <div class="row"><div class="k"><kbd>↑</kbd> <span class="sep">/</span> <kbd>↓</kbd></div><div class="d">история, отфильтрованная по уже набранному началу строки</div></div>
+          <div class="row"><div class="k"><code>z</code> имя</div><div class="d">умный cd: zoxide помнит, куда вы ходите чаще</div></div>
+          <div class="row"><div class="k"><code>dot</code></div><div class="d">перейти в репозиторий dotfiles</div></div>
+        </div>
+      </div>
+
+      <div class="p">
+        <h3>Правка строки</h3>
+        <div class="rows">
+          <div class="row"><div class="k"><kbd>⌥</kbd>+<kbd>←</kbd> <span class="sep">/</span> <kbd>→</kbd></div><div class="d">на слово назад и вперёд</div></div>
+          <div class="row"><div class="k"><kbd>⇧</kbd>+<kbd>←</kbd> <span class="sep">/</span> <kbd>→</kbd></div><div class="d">в начало и в конец строки</div></div>
+          <div class="row"><div class="k"><kbd>⌥</kbd>+<kbd>⌫</kbd></div><div class="d">удалить слово слева</div></div>
+          <div class="row"><div class="k"><kbd>⌥</kbd>+<kbd>Del</kbd></div><div class="d">удалить слово справа</div></div>
+        </div>
+        <p class="note">Требует в iTerm2: Profiles → Keys → Left Option key = <code>Esc+</code>. Иначе Option-сочетания вставляют символы.</p>
+      </div>
+
+      <div class="p">
+        <h3>Файлы и каталоги</h3>
+        <div class="rows">
+          <div class="row"><div class="k"><code>ls</code></div><div class="d">eza с иконками, каталоги сверху</div></div>
+          <div class="row"><div class="k"><code>ll</code></div><div class="d">подробно, со скрытыми и статусом git</div></div>
+          <div class="row"><div class="k"><code>lt</code></div><div class="d">дерево на два уровня, без игнорируемого</div></div>
+          <div class="row"><div class="k"><code>rm</code></div><div class="d">кладёт в Корзину, а не стирает<span class="tag">не настоящий rm</span></div></div>
+          <div class="row"><div class="k"><code>\rm</code></div><div class="d">настоящее удаление, когда оно нужно</div></div>
+          <div class="row"><div class="k"><code>mv</code> <span class="sep">·</span> <code>cp</code></div><div class="d">с флагом <code>-i</code>: спросят перед перезаписью</div></div>
+        </div>
+      </div>
+
+      <div class="p">
+        <h3>Открыть файл в nvim</h3>
+        <div class="rows">
+          <div class="row"><div class="k"><code>v</code> файл</div><div class="d">открыть в nvim</div></div>
+          <div class="row"><div class="k"><code>v</code> файл<code>:42</code></div><div class="d">сразу на строке 42 — формат вывода rg, grep -n и стектрейсов, строку можно просто скопировать</div></div>
+          <div class="row"><div class="k"><code>v</code> файл<code>:42:7</code></div><div class="d">строка 42, колонка 7</div></div>
+          <div class="row"><div class="k"><code>vf</code></div><div class="d">выбрать файл через fzf с превью, <kbd>Enter</kbd> откроет nvim</div></div>
+          <div class="row"><div class="k"><code>vg</code> текст</div><div class="d">поиск по содержимому, <kbd>Enter</kbd> откроет nvim на найденной строке</div></div>
+          <div class="row"><div class="k"><code>md</code> файл</div><div class="d">прочитать Markdown в терминале (glow); без аргумента — список md-файлов каталога</div></div>
+        </div>
+        <p class="note">Отличие от <kbd>Ctrl</kbd>+<kbd>T</kbd>: тот вставляет путь в строку, а <code>vf</code> сразу открывает редактор.</p>
+      </div>
+
+      <div class="p">
+        <h3>Прочее</h3>
+        <div class="rows">
+          <div class="row"><div class="k"><code>reload</code></div><div class="d">перезапустить шелл после правки конфига</div></div>
+          <div class="row"><div class="k"><code>path</code></div><div class="d">PATH по одной записи на строку</div></div>
+          <div class="row"><div class="k"><code>dc</code></div><div class="d">docker compose</div></div>
+          <div class="row"><div class="k"><code>dps</code></div><div class="d">контейнеры таблицей: имя, статус, порты</div></div>
+          <div class="row"><div class="k"><code>vim</code></div><div class="d">открывает nvim</div></div>
+        </div>
+      </div>
+
+      <div class="p wide">
+        <h3>Что нужно помнить про историю</h3>
+        <div class="rows">
+          <div class="row"><div class="k">пробел в начале</div><div class="d">команда, набранная с ведущим пробелом, в историю не попадёт. Так вводят строки с паролями и токенами</div></div>
+          <div class="row"><div class="k">где лежит</div><div class="d"><code>~/.local/state/zsh/history</code>, а не в репозитории: иначе токены из командной строки уехали бы в git</div></div>
+          <div class="row"><div class="k">общая</div><div class="d">все вкладки пишут в один файл и сразу видят команды друг друга</div></div>
+          <div class="row"><div class="k">секреты</div><div class="d">внутренние хосты, строки подключения и токены — в <code>~/.config/zsh/local.zsh</code>, он вне git</div></div>
+        </div>
+      </div>
+
+    </div>
+  </section>
+
+  <!-- ═══════════════ GIT ═══════════════ -->
+  <section class="sec" id="git" data-c="git">
+    <div class="sec-head">
+      <h2>Git в консоли</h2>
+      <p>Алиасы для быстрого взгляда и forgit для интерактивного выбора через fzf. Диффы везде идут через delta.</p>
+    </div>
+    <div class="grid">
+
+      <div class="p">
+        <h3>Смотреть историю</h3>
+        <div class="rows">
+          <div class="row"><div class="k"><code>gl</code></div><div class="d">граф 30 коммитов: хеш, дата, автор, ветки, сообщение</div></div>
+          <div class="row"><div class="k"><code>gla</code></div><div class="d">то же самое по всем веткам сразу</div></div>
+          <div class="row"><div class="k"><code>git ll</code></div><div class="d">коммиты со списком изменённых файлов</div></div>
+          <div class="row"><div class="k"><code>git last</code></div><div class="d">последний коммит с файлами</div></div>
+          <div class="row"><div class="k"><code>git msg</code> sha</div><div class="d">полное сообщение, автор и коммиттер с датами</div></div>
+          <div class="row"><div class="k"><code>git hist</code> файл</div><div class="d">история файла сквозь переименования, с диффами</div></div>
+        </div>
+      </div>
+
+      <div class="p">
+        <h3>Искать</h3>
+        <div class="rows">
+          <div class="row"><div class="k"><code>git search</code> текст</div><div class="d">коммиты, в сообщении которых встречается текст, по всем веткам</div></div>
+          <div class="row"><div class="k"><code>git pickaxe</code> строка</div><div class="d">коммит, где эта строка кода появилась или исчезла</div></div>
+          <div class="row"><div class="k"><code>git bl</code> файл</div><div class="d">blame без учёта пробелов и сквозь перемещения кода</div></div>
+          <div class="row"><div class="k"><code>git who</code></div><div class="d">кто сколько коммитил, с почтами</div></div>
+          <div class="row"><div class="k"><code>gw</code></div><div class="d">какой идентичностью подписан этот репозиторий</div></div>
+        </div>
+        <p class="note">У <code>git bl</code> флаги <code>-w -C -C -C</code>: строка не считается вашей только потому, что вы переставили отступ или перенесли её из другого файла.</p>
+      </div>
+
+      <div class="p">
+        <h3>Ветки</h3>
+        <div class="rows">
+          <div class="row"><div class="k"><code>gb</code></div><div class="d">все ветки таблицей: имя, когда, кто, последний коммит</div></div>
+          <div class="row"><div class="k"><code>git bv</code></div><div class="d">локальные ветки с upstream и отставанием</div></div>
+          <div class="row"><div class="k"><code>git up</code></div><div class="d">что накопилось в текущей ветке относительно main</div></div>
+          <div class="row"><div class="k"><code>git gone</code></div><div class="d">ветки, чей upstream уже удалён на сервере</div></div>
+          <div class="row"><div class="k"><code>git sw</code> <span class="sep">·</span> <code>swc</code></div><div class="d">переключиться на ветку · создать новую</div></div>
+        </div>
+      </div>
+
+      <div class="p">
+        <h3>Менять</h3>
+        <div class="rows">
+          <div class="row"><div class="k"><code>gs</code></div><div class="d">короткий статус с веткой и отставанием</div></div>
+          <div class="row"><div class="k"><code>git wip</code></div><div class="d">добавить всё и закоммитить как «wip»</div></div>
+          <div class="row"><div class="k"><code>git amend</code></div><div class="d">дописать в последний коммит, не трогая сообщение</div></div>
+          <div class="row"><div class="k"><code>git undo</code></div><div class="d">снять последний коммит, изменения остаются в индексе</div></div>
+          <div class="row"><div class="k"><code>git fixup</code> sha</div><div class="d">коммит-заплатка к указанному</div></div>
+          <div class="row"><div class="k"><code>git ri</code></div><div class="d">интерактивный rebase, заплатки вклеиваются сами</div></div>
+          <div class="row"><div class="k"><code>git stashes</code></div><div class="d">список отложенного</div></div>
+        </div>
+      </div>
+
+      <div class="p wide">
+        <h3>forgit — то же самое, но с выбором через fzf</h3>
+        <div class="rows">
+          <div class="row"><div class="k"><code>glo</code></div><div class="d">лог с превью коммита, Enter открывает дифф</div></div>
+          <div class="row"><div class="k"><code>gd</code></div><div class="d">дифф по файлам с превью</div></div>
+          <div class="row"><div class="k"><code>ga</code></div><div class="d">добавить в индекс, выбирая файлы из списка</div></div>
+          <div class="row"><div class="k"><code>gcb</code></div><div class="d">переключиться на ветку из списка</div></div>
+          <div class="row"><div class="k"><code>gcf</code></div><div class="d">откатить файл к состоянию HEAD</div></div>
+          <div class="row"><div class="k"><code>gss</code></div><div class="d">выбрать и применить отложенное</div></div>
+          <div class="row"><div class="k"><code>gbl</code></div><div class="d">blame с выбором файла</div></div>
+          <div class="row"><div class="k"><code>grh</code></div><div class="d">убрать файлы из индекса</div></div>
+          <div class="row"><div class="k"><code>gclean</code></div><div class="d">удалить неотслеживаемые файлы, отмечая нужные</div></div>
+        </div>
+        <p class="note">Внутри любого списка: <kbd>Tab</kbd> отметить несколько, <kbd>Enter</kbd> подтвердить, <kbd>Ctrl</kbd>+<kbd>D</kbd> и <kbd>Ctrl</kbd>+<kbd>U</kbd> листать превью.</p>
+      </div>
+
+      <div class="p">
+        <h3>Как настроен сам git</h3>
+        <div class="rows">
+          <div class="row"><div class="k">pull</div><div class="d">всегда через rebase, со stash до и после</div></div>
+          <div class="row"><div class="k">push</div><div class="d">новая ветка уходит без <code>-u</code>, теги едут следом</div></div>
+          <div class="row"><div class="k">конфликты</div><div class="d">zdiff3 показывает исходную версию, rerere запоминает решения</div></div>
+          <div class="row"><div class="k">коммит</div><div class="d">в буфере сообщения виден дифф целиком</div></div>
+          <div class="row"><div class="k">diff и merge</div><div class="d"><code>git difftool</code> и <code>git mergetool</code> открывают nvim</div></div>
+        </div>
+      </div>
+
+    </div>
+  </section>
+
+  <!-- ═══════════════ LAZYGIT ═══════════════ -->
+  <section class="sec" id="lazygit" data-c="git">
+    <div class="sec-head">
+      <h2>lazygit</h2>
+      <p>Запуск: <code>lg</code>. Из nvim: <kbd>Space</kbd> <kbd>g</kbd> <kbd>g</kbd>. Клавиша <kbd>?</kbd> всегда покажет всё для текущей панели.</p>
+    </div>
+    <div class="grid">
+
+      <div class="p">
+        <h3>Панели и навигация</h3>
+        <div class="rows">
+          <div class="row"><div class="k"><kbd>1</kbd> … <kbd>5</kbd></div><div class="d">статус · файлы · ветки · коммиты · отложенное</div></div>
+          <div class="row"><div class="k"><kbd>Tab</kbd> <span class="sep">·</span> <kbd>h</kbd> <kbd>l</kbd></div><div class="d">соседняя панель</div></div>
+          <div class="row"><div class="k"><kbd>j</kbd> <kbd>k</kbd></div><div class="d">по списку вниз и вверх</div></div>
+          <div class="row"><div class="k"><kbd>0</kbd></div><div class="d">фокус в правое окно, чтобы листать сам дифф</div></div>
+          <div class="row"><div class="k"><kbd>+</kbd> <span class="sep">/</span> <kbd>_</kbd></div><div class="d">развернуть панель на весь экран и обратно</div></div>
+          <div class="row"><div class="k"><kbd>?</kbd> <span class="sep">·</span> <kbd>Esc</kbd> <span class="sep">·</span> <kbd>q</kbd></div><div class="d">справка · назад · выход</div></div>
+        </div>
+      </div>
+
+      <div class="p">
+        <h3>Читать историю — панель <kbd>4</kbd></h3>
+        <div class="rows">
+          <div class="row"><div class="k"><kbd>Enter</kbd></div><div class="d">файлы коммита, ещё раз — изменения по строкам</div></div>
+          <div class="row"><div class="k"><kbd>/</kbd></div><div class="d">искать по видимому списку</div></div>
+          <div class="row"><div class="k"><kbd>Ctrl</kbd>+<kbd>S</kbd></div><div class="d">оставить только коммиты, где встречается строка</div></div>
+          <div class="row"><div class="k"><kbd>Ctrl</kbd>+<kbd>L</kbd></div><div class="d">меню лога: все ветки, граф, порядок сортировки</div></div>
+          <div class="row"><div class="k"><kbd>y</kbd></div><div class="d">скопировать хеш, сообщение, автора или дифф на выбор</div></div>
+          <div class="row"><div class="k"><kbd>W</kbd></div><div class="d">дифф между двумя ссылками</div></div>
+          <div class="row"><div class="k"><kbd>*</kbd></div><div class="d">только коммиты текущей ветки</div></div>
+        </div>
+        <p class="note">Граф и порядок <code>topo-order</code> включены в конфиге: коммиты одной ветки идут подряд, а не вперемешку по датам.</p>
+      </div>
+
+      <div class="p">
+        <h3>Менять историю — там же</h3>
+        <div class="rows">
+          <div class="row"><div class="k"><kbd>r</kbd></div><div class="d">переписать сообщение коммита</div></div>
+          <div class="row"><div class="k"><kbd>s</kbd> <span class="sep">/</span> <kbd>f</kbd></div><div class="d">склеить с коммитом ниже: с сообщением и без</div></div>
+          <div class="row"><div class="k"><kbd>d</kbd></div><div class="d">выбросить коммит</div></div>
+          <div class="row"><div class="k"><kbd>A</kbd></div><div class="d">влить содержимое индекса в выбранный коммит</div></div>
+          <div class="row"><div class="k"><kbd>i</kbd></div><div class="d">интерактивный rebase от текущей ветки</div></div>
+          <div class="row"><div class="k"><kbd>t</kbd></div><div class="d">revert: обратный коммит поверх</div></div>
+          <div class="row"><div class="k"><kbd>g</kbd></div><div class="d">reset на выбранный: soft, mixed или hard</div></div>
+        </div>
+        <p class="note">Всё это переписывает коммиты. На ветке, которую уже кто-то тянул, сначала убедитесь, что это никому не сломает историю.</p>
+      </div>
+
+      <div class="p">
+        <h3>Ветки <kbd>3</kbd> и файлы <kbd>2</kbd></h3>
+        <div class="rows">
+          <div class="row"><div class="k"><kbd>3</kbd> <kbd>Enter</kbd></div><div class="d">коммиты ветки, не переключаясь на неё</div></div>
+          <div class="row"><div class="k"><kbd>3</kbd> <kbd>Space</kbd></div><div class="d">переключиться на ветку</div></div>
+          <div class="row"><div class="k"><kbd>c</kbd> <span class="sep">·</span> <kbd>-</kbd></div><div class="d">переключиться по имени · на предыдущую</div></div>
+          <div class="row"><div class="k"><kbd>r</kbd> <span class="sep">·</span> <kbd>M</kbd> <span class="sep">·</span> <kbd>d</kbd></div><div class="d">rebase · merge · удалить</div></div>
+          <div class="row"><div class="k"><kbd>2</kbd> <kbd>Space</kbd></div><div class="d">добавить файл в индекс или убрать</div></div>
+          <div class="row"><div class="k"><kbd>2</kbd> <kbd>Enter</kbd></div><div class="d">стейджить по отдельным строкам</div></div>
+          <div class="row"><div class="k"><kbd>c</kbd></div><div class="d">закоммитить</div></div>
+        </div>
+      </div>
+
+      <div class="p">
+        <h3>Если что-то пошло не так</h3>
+        <div class="rows">
+          <div class="row"><div class="k"><kbd>z</kbd> <span class="sep">/</span> <kbd>Z</kbd></div><div class="d">отменить последнюю операцию git и вернуть обратно</div></div>
+          <div class="row"><div class="k"><kbd>m</kbd></div><div class="d">меню незавершённого merge или rebase: продолжить, пропустить, прервать</div></div>
+          <div class="row"><div class="k"><kbd>P</kbd> <span class="sep">/</span> <kbd>p</kbd></div><div class="d">push и pull</div></div>
+        </div>
+        <p class="note"><kbd>z</kbd> работает через reflog, поэтому вытаскивает даже после неудачного rebase. Незакоммиченные изменения он не восстанавливает.</p>
+      </div>
+
+      <div class="p">
+        <h3>Запуск сразу в нужном месте</h3>
+        <div class="rows">
+          <div class="row"><div class="k"><code>lazygit log</code></div><div class="d">открыться на панели коммитов</div></div>
+          <div class="row"><div class="k"><code>lazygit --filter</code> файл</div><div class="d">история одного файла</div></div>
+          <div class="row"><div class="k"><code>lazygit branch</code></div><div class="d">открыться на ветках</div></div>
+        </div>
+      </div>
+
+    </div>
+  </section>
+
+  <!-- ═══════════════ TIG ═══════════════ -->
+  <section class="sec" id="tig" data-c="tui">
+    <div class="sec-head">
+      <h2>tig</h2>
+      <p>Для чтения: история, авторство, поиск. Помнить нужно только <kbd>Enter</kbd> и <kbd>q</kbd>, остальное покажет <kbd>h</kbd>.</p>
+    </div>
+    <div class="grid">
+
+      <div class="p">
+        <h3>Режимы запуска</h3>
+        <div class="rows">
+          <div class="row"><div class="k"><code>tig</code></div><div class="d">история текущей ветки: хеш, дата, автор, граф, ветки</div></div>
+          <div class="row"><div class="k"><code>tig --all</code></div><div class="d">все ветки сразу</div></div>
+          <div class="row"><div class="k"><code>tig blame</code> файл</div><div class="d">авторство по строкам</div></div>
+          <div class="row"><div class="k"><code>tig status</code></div><div class="d">что изменено в рабочем дереве</div></div>
+          <div class="row"><div class="k"><code>tig grep</code> текст</div><div class="d">поиск по содержимому файлов</div></div>
+          <div class="row"><div class="k"><code>tig refs</code></div><div class="d">ветки и теги списком</div></div>
+          <div class="row"><div class="k"><code>tig</code> ветка</div><div class="d">история конкретной ветки</div></div>
+        </div>
+      </div>
+
+      <div class="p">
+        <h3>Внутри</h3>
+        <div class="rows">
+          <div class="row"><div class="k"><kbd>Enter</kbd> <span class="sep">·</span> <kbd>q</kbd></div><div class="d">открыть коммит · вернуться назад</div></div>
+          <div class="row"><div class="k"><kbd>/</kbd> <span class="sep">·</span> <kbd>h</kbd></div><div class="d">поиск · полная справка по клавишам</div></div>
+          <div class="row"><div class="k"><kbd>g</kbd> <span class="sep">/</span> <kbd>G</kbd></div><div class="d">в начало и в конец списка</div></div>
+          <div class="row"><div class="k"><kbd>Ctrl</kbd>+<kbd>D</kbd> <span class="sep">/</span> <kbd>U</kbd></div><div class="d">полэкрана вниз и вверх</div></div>
+          <div class="row"><div class="k"><kbd>,</kbd></div><div class="d">в blame: перейти к предыдущей версии этой строки</div></div>
+          <div class="row"><div class="k"><kbd>F</kbd> <span class="sep">·</span> <kbd>C</kbd> <span class="sep">·</span> <kbd>E</kbd></div><div class="d">fetch · checkout · открыть файл в nvim</div></div>
+        </div>
+        <p class="note">Клавиши <kbd>g</kbd>, <kbd>G</kbd>, <kbd>Ctrl+D</kbd>, <kbd>Ctrl+U</kbd>, <kbd>C</kbd>, <kbd>F</kbd> и <kbd>E</kbd> добавлены в вашем конфиге, в стандартном tig их нет.</p>
+      </div>
+
+      <div class="p">
+        <h3>Когда что</h3>
+        <div class="rows">
+          <div class="row"><div class="k">tig</div><div class="d">разобраться, что происходило: читать историю и blame</div></div>
+          <div class="row"><div class="k">lazygit</div><div class="d">делать: стейджить, коммитить, ветки, rebase</div></div>
+          <div class="row"><div class="k">forgit</div><div class="d">одно быстрое действие, не выходя из строки</div></div>
+          <div class="row"><div class="k">алиасы</div><div class="d">взглянуть и вернуться к работе</div></div>
+        </div>
+      </div>
+
+    </div>
+  </section>
+
+  <!-- ═══════════════ NEOVIM ═══════════════ -->
+  <section class="sec" id="vim" data-c="vim">
+    <div class="sec-head">
+      <h2>Neovim</h2>
+      <p>Leader — это <kbd>Space</kbd>. Профиль узкий: YAML и k8s, документация, логи, Go, git. Забыли клавишу — нажмите <kbd>Space</kbd> и подождите, which-key покажет варианты.</p>
+    </div>
+    <div class="grid">
+
+      <div class="p">
+        <h3>Основное</h3>
+        <div class="rows">
+          <div class="row"><div class="k"><kbd>Space</kbd> <kbd>w</kbd> <span class="sep">/</span> <kbd>q</kbd></div><div class="d">сохранить · закрыть</div></div>
+          <div class="row"><div class="k"><kbd>Esc</kbd></div><div class="d">снять подсветку поиска</div></div>
+          <div class="row"><div class="k"><kbd>Ctrl</kbd>+<kbd>h</kbd> <kbd>j</kbd> <kbd>k</kbd> <kbd>l</kbd></div><div class="d">перейти в соседнее окно</div></div>
+          <div class="row"><div class="k"><kbd>J</kbd> <span class="sep">/</span> <kbd>K</kbd></div><div class="d">в визуальном режиме — двигать выделенные строки</div></div>
+          <div class="row"><div class="k"><kbd>-</kbd></div><div class="d">файловый менеджер в каталоге текущего файла</div></div>
+        </div>
+      </div>
+
+      <div class="p">
+        <h3>Поиск по проекту</h3>
+        <div class="rows">
+          <div class="row"><div class="k"><kbd>Space</kbd> <kbd>f</kbd></div><div class="d">файлы по имени</div></div>
+          <div class="row"><div class="k"><kbd>Space</kbd> <kbd>s</kbd></div><div class="d">поиск по содержимому</div></div>
+          <div class="row"><div class="k"><kbd>Space</kbd> <kbd>b</kbd></div><div class="d">открытые буферы</div></div>
+          <div class="row"><div class="k"><kbd>Space</kbd> <kbd>/</kbd></div><div class="d">поиск внутри текущего файла</div></div>
+          <div class="row"><div class="k"><kbd>Space</kbd> <kbd>d</kbd></div><div class="d">все ошибки и предупреждения проекта</div></div>
+          <div class="row"><div class="k"><kbd>Space</kbd> <kbd>r</kbd></div><div class="d">вернуться к прошлому поиску с теми же результатами</div></div>
+        </div>
+        <p class="note">Внутри списка: <kbd>Ctrl</kbd>+<kbd>n</kbd> и <kbd>Ctrl</kbd>+<kbd>p</kbd> движение, <kbd>Enter</kbd> открыть, <kbd>Ctrl</kbd>+<kbd>v</kbd> и <kbd>Ctrl</kbd>+<kbd>x</kbd> в вертикальный и горизонтальный сплит, <kbd>Tab</kbd> отметить несколько, <kbd>Ctrl</kbd>+<kbd>q</kbd> все результаты в список, <kbd>Esc</kbd> закрыть.</p>
+      </div>
+
+      <div class="p">
+        <h3>Код: LSP</h3>
+        <div class="rows">
+          <div class="row"><div class="k"><kbd>g</kbd> <kbd>d</kbd></div><div class="d">перейти к определению</div></div>
+          <div class="row"><div class="k"><kbd>g</kbd> <kbd>r</kbd></div><div class="d">все места, где используется</div></div>
+          <div class="row"><div class="k"><kbd>K</kbd></div><div class="d">документация под курсором</div></div>
+          <div class="row"><div class="k"><kbd>Space</kbd> <kbd>r</kbd> <kbd>n</kbd></div><div class="d">переименовать во всём проекте</div></div>
+          <div class="row"><div class="k"><kbd>Space</kbd> <kbd>c</kbd> <kbd>a</kbd></div><div class="d">быстрые исправления и действия</div></div>
+          <div class="row"><div class="k"><kbd>Space</kbd> <kbd>e</kbd></div><div class="d">развернуть ошибку под курсором</div></div>
+          <div class="row"><div class="k"><kbd>Space</kbd> <kbd>F</kbd></div><div class="d">отформатировать файл вручную</div></div>
+        </div>
+        <p class="note">Go и Lua форматируются сами при сохранении. YAML — намеренно нет: prettier переставляет кавычки и ломает дифф в чужих манифестах.</p>
+      </div>
+
+      <div class="p">
+        <h3>Автодополнение</h3>
+        <div class="rows">
+          <div class="row"><div class="k"><kbd>Ctrl</kbd>+<kbd>Space</kbd></div><div class="d">открыть меню подсказок</div></div>
+          <div class="row"><div class="k"><kbd>Ctrl</kbd>+<kbd>n</kbd> <span class="sep">/</span> <kbd>p</kbd></div><div class="d">следующий и предыдущий вариант</div></div>
+          <div class="row"><div class="k"><kbd>Ctrl</kbd>+<kbd>y</kbd></div><div class="d">принять выбранный</div></div>
+          <div class="row"><div class="k"><kbd>Ctrl</kbd>+<kbd>e</kbd></div><div class="d">закрыть меню</div></div>
+          <div class="row"><div class="k"><kbd>Ctrl</kbd>+<kbd>k</kbd></div><div class="d">подсказка по аргументам функции</div></div>
+          <div class="row"><div class="k"><kbd>Tab</kbd> <span class="sep">/</span> <kbd>⇧Tab</kbd></div><div class="d">по полям сниппета вперёд и назад</div></div>
+        </div>
+      </div>
+
+      <div class="p wide">
+        <h3>Git внутри редактора — всё на <kbd>Space</kbd> <kbd>g</kbd></h3>
+        <div class="rows">
+          <div class="row"><div class="k"><kbd>Space</kbd> <kbd>g</kbd> <kbd>g</kbd></div><div class="d">lazygit во всплывающем окне</div></div>
+          <div class="row"><div class="k"><kbd>Space</kbd> <kbd>g</kbd> <kbd>s</kbd></div><div class="d">статус: <kbd>s</kbd> в индекс, <kbd>u</kbd> обратно, <kbd>cc</kbd> коммит, <kbd>ca</kbd> дополнить, <kbd>=</kbd> дифф, <kbd>g?</kbd> справка</div></div>
+          <div class="row"><div class="k"><kbd>Space</kbd> <kbd>g</kbd> <kbd>b</kbd></div><div class="d">blame всего файла: <kbd>Enter</kbd> коммит, <kbd>o</kbd> в сплит</div></div>
+          <div class="row"><div class="k"><kbd>Space</kbd> <kbd>g</kbd> <kbd>l</kbd></div><div class="d">лог репозитория с превью коммита</div></div>
+          <div class="row"><div class="k"><kbd>Space</kbd> <kbd>g</kbd> <kbd>L</kbd></div><div class="d">только коммиты текущего файла</div></div>
+          <div class="row"><div class="k"><kbd>Space</kbd> <kbd>g</kbd> <kbd>B</kbd></div><div class="d">ветки, <kbd>Enter</kbd> переключиться</div></div>
+          <div class="row"><div class="k"><kbd>Space</kbd> <kbd>g</kbd> <kbd>S</kbd></div><div class="d">изменённые файлы списком</div></div>
+          <div class="row"><div class="k"><kbd>Space</kbd> <kbd>g</kbd> <kbd>d</kbd></div><div class="d">дифф всего рабочего дерева в сплитах</div></div>
+          <div class="row"><div class="k"><kbd>Space</kbd> <kbd>g</kbd> <kbd>h</kbd></div><div class="d">история текущего файла</div></div>
+          <div class="row"><div class="k"><kbd>Space</kbd> <kbd>g</kbd> <kbd>H</kbd></div><div class="d">история всего репозитория</div></div>
+          <div class="row"><div class="k"><kbd>Space</kbd> <kbd>g</kbd> <kbd>q</kbd></div><div class="d">закрыть окно диффа</div></div>
+        </div>
+      </div>
+
+      <div class="p">
+        <h3>Изменения по кускам — <kbd>Space</kbd> <kbd>h</kbd></h3>
+        <div class="rows">
+          <div class="row"><div class="k"><kbd>]</kbd><kbd>c</kbd> <span class="sep">/</span> <kbd>[</kbd><kbd>c</kbd></div><div class="d">следующее и предыдущее изменение в файле</div></div>
+          <div class="row"><div class="k"><kbd>Space</kbd> <kbd>h</kbd> <kbd>p</kbd></div><div class="d">показать, что именно изменилось</div></div>
+          <div class="row"><div class="k"><kbd>Space</kbd> <kbd>h</kbd> <kbd>s</kbd></div><div class="d">добавить этот кусок в индекс</div></div>
+          <div class="row"><div class="k"><kbd>Space</kbd> <kbd>h</kbd> <kbd>r</kbd></div><div class="d">откатить этот кусок</div></div>
+          <div class="row"><div class="k"><kbd>Space</kbd> <kbd>h</kbd> <kbd>d</kbd></div><div class="d">дифф файла с индексом</div></div>
+          <div class="row"><div class="k"><kbd>Space</kbd> <kbd>h</kbd> <kbd>b</kbd></div><div class="d">кто и когда менял эту строку</div></div>
+          <div class="row"><div class="k"><kbd>Space</kbd> <kbd>t</kbd> <kbd>b</kbd></div><div class="d">показывать автора рядом с каждой строкой</div></div>
+        </div>
+      </div>
+
+      <div class="p">
+        <h3>Файловый менеджер</h3>
+        <div class="rows">
+          <div class="row"><div class="k"><kbd>-</kbd></div><div class="d">открыть каталог файла, ещё раз — на уровень вверх</div></div>
+          <div class="row"><div class="k"><kbd>Enter</kbd></div><div class="d">войти в каталог или открыть файл</div></div>
+          <div class="row"><div class="k">правка</div><div class="d">каталог редактируется как обычный текст: переименуйте строку, удалите, допишите новую</div></div>
+          <div class="row"><div class="k"><code>:w</code></div><div class="d">применить правки к диску</div></div>
+          <div class="row"><div class="k"><kbd>g</kbd><kbd>?</kbd></div><div class="d">справка по клавишам</div></div>
+        </div>
+      </div>
+
+      <div class="p">
+        <h3>Markdown</h3>
+        <div class="rows">
+          <div class="row"><div class="k">перенос строк</div><div class="d">включён по словам, с сохранением отступа списка; <kbd>j</kbd> и <kbd>k</kbd> ходят по экранным строкам</div></div>
+          <div class="row"><div class="k"><kbd>Space</kbd> <kbd>o</kbd></div><div class="d">оглавление файла: заголовки списком, <kbd>Enter</kbd> — перейти</div></div>
+          <div class="row"><div class="k"><kbd>Space</kbd> <kbd>x</kbd></div><div class="d">отметить пункт списка задач: <code>- [ ]</code> ↔ <code>- [x]</code></div></div>
+          <div class="row"><div class="k"><kbd>Space</kbd> <kbd>t</kbd> <kbd>m</kbd></div><div class="d">режим таблиц: столбцы выравниваются прямо при наборе</div></div>
+          <div class="row"><div class="k"><kbd>g</kbd><kbd>x</kbd></div><div class="d">открыть ссылку под курсором в браузере</div></div>
+          <div class="row"><div class="k"><kbd>z</kbd><kbd>=</kbd></div><div class="d">варианты замены для слова с опечаткой (проверка русского и английского)</div></div>
+          <div class="row"><div class="k"><kbd>Space</kbd> <kbd>F</kbd></div><div class="d">отформатировать через prettier</div></div>
+        </div>
+        <p class="note">Файл на диске не переформатируется: перенос только визуальный, иначе дифф в git превращается в кашу. Орфография включается, когда стоит русский словарь: один раз <code>:set spell spelllang=ru</code>, nvim предложит скачать.</p>
+      </div>
+
+      <div class="p">
+        <h3>Логи и большие файлы</h3>
+        <div class="rows">
+          <div class="row"><div class="k"><kbd>Space</kbd> <kbd>t</kbd> <kbd>w</kbd></div><div class="d">включить перенос длинных строк</div></div>
+          <div class="row"><div class="k"><code>:Tail</code></div><div class="d">следить за растущим файлом, как <code>tail -f</code></div></div>
+          <div class="row"><div class="k">больше 5 МБ</div><div class="d">открывается без подсветки и без undo-файла, чтобы редактор не подвисал</div></div>
+          <div class="row"><div class="k">подсветка</div><div class="d">уровни и таймстампы в файлах <code>.log</code> раскрашиваются</div></div>
+        </div>
+      </div>
+
+      <div class="p wide">
+        <h3>Что стоит и работает само</h3>
+        <div class="rows">
+          <div class="row"><div class="k">языковые серверы</div><div class="d">gopls, yamlls, jsonls, bashls, dockerls, marksman, taplo, lua_ls — ставит mason при первом запуске</div></div>
+          <div class="row"><div class="k">схемы YAML и JSON</div><div class="d">автодополнение и проверка манифестов Kubernetes, docker-compose, GitHub Actions</div></div>
+          <div class="row"><div class="k">форматирование</div><div class="d">goimports и gofmt, prettier, stylua, shfmt. Автоматически — только Go и Lua</div></div>
+          <div class="row"><div class="k">Java</div><div class="d">намеренно не поддерживается: для неё IDEA</div></div>
+          <div class="row"><div class="k">обновить плагины</div><div class="d"><code>:Lazy</code> — список и обновление, <code>:Mason</code> — языковые серверы, <code>:checkhealth</code> — диагностика</div></div>
+        </div>
+      </div>
+
+    </div>
+  </section>
+
+  <!-- ═══════════════ СЕКРЕТЫ ═══════════════ -->
+  <section class="sec" id="secrets" data-c="sec">
+    <div class="sec-head">
+      <h2>Секреты</h2>
+      <p>Пароли БД, токены, ключи и kubeconfig лежат в отдельном keychain <code>dev</code>, а не в Apple Passwords: у Passwords нет API. Команда <code>sec</code> прячет длинные вызовы <code>security</code>.</p>
+    </div>
+    <div class="grid">
+
+      <div class="p">
+        <h3>Положить</h3>
+        <div class="rows">
+          <div class="row"><div class="k"><code>sec add</code> имя</div><div class="d">спросит значение скрытым вводом, на экране ничего не появится</div></div>
+          <div class="row"><div class="k"><code>-a</code> <span class="sep">·</span> <code>-n</code></div><div class="d">аккаунт или логин · заметка: хост, порт, для чего</div></div>
+          <div class="row"><div class="k"><code>-f</code> файл</div><div class="d">сохранить файл целиком: ключ, kubeconfig, сертификат</div></div>
+          <div class="row"><div class="k"><code>-u</code></div><div class="d">заменить существующую запись</div></div>
+          <div class="row"><div class="k">из пайпа</div><div class="d"><code>printf '%s' токен | sec add kafka/token</code></div></div>
+        </div>
+        <p class="note">Имена через слэш группируются: <code>ssh/id_work</code>, <code>k8s/prod</code>. Группы видны в <code>sec ls</code> и в автодополнении по <kbd>Tab</kbd>.</p>
+      </div>
+
+      <div class="p">
+        <h3>Достать</h3>
+        <div class="rows">
+          <div class="row"><div class="k"><code>sec get</code> имя</div><div class="d">в stdout, чтобы подставить: <code>$(sec get pg-staging)</code></div></div>
+          <div class="row"><div class="k"><code>sec cp</code> имя <span class="sep">·</span> <code>sc</code></div><div class="d">в буфер обмена, очистится через 30 секунд</div></div>
+          <div class="row"><div class="k"><code>sec out</code> имя путь</div><div class="d">восстановить файл на диск с правами 600</div></div>
+          <div class="row"><div class="k"><code>sec ls</code></div><div class="d">список записей без самих секретов, можно с префиксом</div></div>
+          <div class="row"><div class="k"><code>sec show</code> имя</div><div class="d">метаданные: аккаунт, заметка, когда создана</div></div>
+          <div class="row"><div class="k"><code>sec rm</code> имя</div><div class="d">удалить, <code>-y</code> без подтверждения</div></div>
+        </div>
+      </div>
+
+      <div class="p">
+        <h3>Выбрать через fzf</h3>
+        <div class="rows">
+          <div class="row"><div class="k"><code>sec</code></div><div class="d">без аргументов — список с метаданными справа</div></div>
+          <div class="row"><div class="k"><kbd>Enter</kbd></div><div class="d">положить в буфер обмена</div></div>
+          <div class="row"><div class="k"><kbd>Ctrl</kbd>+<kbd>O</kbd></div><div class="d">вывести секрет на экран</div></div>
+          <div class="row"><div class="k"><kbd>Ctrl</kbd>+<kbd>E</kbd></div><div class="d">заменить значение</div></div>
+          <div class="row"><div class="k"><kbd>Ctrl</kbd>+<kbd>D</kbd></div><div class="d">удалить запись</div></div>
+          <div class="row"><div class="k"><kbd>Ctrl</kbd>+<kbd>R</kbd></div><div class="d">обновить список</div></div>
+        </div>
+      </div>
+
+      <div class="p wide">
+        <h3>Запустить команду с секретами в окружении</h3>
+        <div class="rows">
+          <div class="row"><div class="k"><code>sec env -- </code>команда</div><div class="d">читает <code>.secrets</code> из текущего каталога и подставляет значения только этой команде</div></div>
+          <div class="row"><div class="k"><code>-f</code> путь</div><div class="d">взять другой файл: <code>sec env -f ops/.secrets -- kubectl get pods</code></div></div>
+          <div class="row"><div class="k">формат файла</div><div class="d">строки вида <code>PGPASSWORD=pg-staging</code>: слева переменная, справа имя записи</div></div>
+          <div class="row"><div class="k">в git</div><div class="d"><code>.secrets</code> можно коммитить — в нём только имена, самих секретов нет</div></div>
+          <div class="row"><div class="k">в шелл</div><div class="d">ничего не экспортируется: переменные живут только внутри запущенной команды</div></div>
+        </div>
+      </div>
+
+      <div class="p">
+        <h3>Первый запуск и обслуживание</h3>
+        <div class="rows">
+          <div class="row"><div class="k"><code>sec init</code></div><div class="d">один раз: создать keychain и задать пароль</div></div>
+          <div class="row"><div class="k"><code>sec doctor</code></div><div class="d">проверить всё: keychain, таймаут, age, fzf, jq</div></div>
+          <div class="row"><div class="k"><code>sec lock</code> <span class="sep">/</span> <code>unlock</code></div><div class="d">заблокировать и разблокировать вручную</div></div>
+          <div class="row"><div class="k"><code>sec help</code> команда</div><div class="d">подробная справка с примерами по каждой команде</div></div>
+          <div class="row"><div class="k"><code>make test</code></div><div class="d">прогнать тесты sec на временном keychain, ваши записи не трогает</div></div>
+        </div>
+      </div>
+
+      <div class="p">
+        <h3>Переезд на другую машину</h3>
+        <div class="rows">
+          <div class="row"><div class="k"><code>sec export</code></div><div class="d">все записи в файл <code>dev-secrets-ДАТА.age</code>, зашифрованный парольной фразой</div></div>
+          <div class="row"><div class="k"><code>sec import</code> файл</div><div class="d">загрузить на новой машине, после <code>sec init</code></div></div>
+          <div class="row"><div class="k"><code>--json</code></div><div class="d">открытый JSON в stdout, для переезда в другой менеджер паролей<span class="tag">без шифрования</span></div></div>
+          <div class="row"><div class="k">вручную</div><div class="d">скопировать <code>dev.keychain-db</code> и выполнить <code>sec init --attach</code></div></div>
+        </div>
+        <p class="note">Парольную фразу от экспорта храните в Apple Passwords. Сам файл <code>.age</code> можно держать хоть в iCloud Drive.</p>
+      </div>
+
+      <div class="p wide">
+        <h3>Что помнить</h3>
+        <div class="rows">
+          <div class="row"><div class="k">блокировка</div><div class="d">keychain закрывается при сне и через час простоя. После этого macOS один раз спросит пароль</div></div>
+          <div class="row"><div class="k">где смотреть глазами</div><div class="d">Keychain Access.app, связка <code>dev</code>: записи видны и правятся там же</div></div>
+          <div class="row"><div class="k">чего sec не даёт</div><div class="d">Touch ID на каждое обращение и защиту от процессов, запущенных от вашего же пользователя, пока keychain разблокирован</div></div>
+          <div class="row"><div class="k">когда нужно строже</div><div class="d">1Password с <code>op</code> и SSH-агентом</div></div>
+        </div>
+      </div>
+
+    </div>
+  </section>
+
+  <!-- ═══════════════ УСТАНОВКА ═══════════════ -->
+  <section class="sec" id="ops" data-c="ops">
+    <div class="sec-head">
+      <h2>Установка и обслуживание</h2>
+      <p>Всё делается из каталога репозитория: <code>dot</code> переносит туда из любого места.</p>
+    </div>
+    <div class="grid">
+
+      <div class="p">
+        <h3>Проверить и починить</h3>
+        <div class="rows">
+          <div class="row"><div class="k"><code>make check</code></div><div class="d">что установлено и подключено, галочка или крестик по каждому пункту, и команда для исправления рядом</div></div>
+          <div class="row"><div class="k"><code>make relink</code></div><div class="d">пересоздать симлинки после добавления файлов в репозиторий</div></div>
+          <div class="row"><div class="k"><code>make core</code></div><div class="d">доставить CLI-пакеты из Brewfile</div></div>
+          <div class="row"><div class="k"><code>make identity</code></div><div class="d">заново задать имя и почту для коммитов</div></div>
+          <div class="row"><div class="k"><code>make lint</code></div><div class="d">проверить синтаксис всех конфигов разом</div></div>
+          <div class="row"><div class="k"><code>make test</code></div><div class="d">тесты sec на временном keychain</div></div>
+          <div class="row"><div class="k"><code>make help</code></div><div class="d">остальные цели</div></div>
+        </div>
+      </div>
+
+      <div class="p">
+        <h3>Установщик</h3>
+        <div class="rows">
+          <div class="row"><div class="k"><code>./install.sh</code></div><div class="d">по шагам, каждый с подтверждением; можно запускать сколько угодно раз</div></div>
+          <div class="row"><div class="k"><code>--check</code></div><div class="d">только проверить, ничего не менять</div></div>
+          <div class="row"><div class="k"><code>--dry-run</code></div><div class="d">показать, что было бы сделано</div></div>
+          <div class="row"><div class="k"><code>--yes</code></div><div class="d">без вопросов, для новой машины</div></div>
+        </div>
+        <p class="note">Существующие файлы в домашнем каталоге не затираются: они уезжают в <code>~/.dotfiles-backup/дата/</code>.</p>
+      </div>
+
+      <div class="p">
+        <h3>Две почты для коммитов</h3>
+        <div class="rows">
+          <div class="row"><div class="k">по умолчанию</div><div class="d">личная почта действует везде</div></div>
+          <div class="row"><div class="k">по каталогу</div><div class="d">всё внутри заданного пути подписывается рабочей почтой автоматически</div></div>
+          <div class="row"><div class="k"><code>gw</code></div><div class="d">проверить, какая почта действует здесь и сейчас</div></div>
+          <div class="row"><div class="k">где лежит</div><div class="d"><code>~/.config/git/identity</code>, права 600, в репозиторий не попадает</div></div>
+        </div>
+      </div>
+
+      <div class="p">
+        <h3>Quick Look для Markdown</h3>
+        <div class="rows">
+          <div class="row"><div class="k"><kbd>Space</kbd> в Finder</div><div class="d">показывает отрендеренный <code>.md</code>, а не простыню текста</div></div>
+          <div class="row"><div class="k"><code>make quicklook</code></div><div class="d">включить: регистрирует расширение QLMarkdown и сбрасывает кеш превью</div></div>
+          <div class="row"><div class="k"><code>make ql-save</code></div><div class="d">сохранить настройки приложения в <code>macos/qlmarkdown.plist</code>, чтобы они уехали в git</div></div>
+          <div class="row"><div class="k"><code>qlmarkdown_cli</code></div><div class="d">тот же рендер из терминала: <code>.md</code> в html</div></div>
+        </div>
+        <p class="note">Настройки правятся в самом приложении QLMarkdown. Оно в песочнице, поэтому его plist лежит в групповом контейнере — руками туда лезть не надо, есть <code>make ql-save</code>.</p>
+      </div>
+
+      <div class="p">
+        <h3>После переустановки</h3>
+        <div class="rows">
+          <div class="row"><div class="k">шрифт</div><div class="d">iTerm2 → Profiles → Text → Font → MesloLGS Nerd Font Mono, иначе промпт рисует квадраты</div></div>
+          <div class="row"><div class="k">Option</div><div class="d">iTerm2 → Profiles → Keys → Left Option key → <code>Esc+</code></div></div>
+          <div class="row"><div class="k">первый nvim</div><div class="d">плагины и языковые серверы ставятся сами, около минуты</div></div>
+        </div>
+      </div>
+
+    </div>
+  </section>
+
+  <!-- ═══════════════ ФАЙЛЫ ═══════════════ -->
+  <section class="sec" id="paths" data-c="ops">
+    <div class="sec-head">
+      <h2>Где что лежит</h2>
+      <p>Всё в домашнем каталоге — симлинки в репозиторий. Правите файл в репозитории, изменения видны сразу.</p>
+    </div>
+    <div class="grid">
+
+      <div class="p wide paths">
+        <h3>Конфиги под контролем git</h3>
+        <div class="rows">
+          <div class="row"><div class="k"><code>~/.zshenv</code></div><div class="d">переменные окружения, PATH, XDG-каталоги. Читается всеми шеллами, включая запуск из Dock</div></div>
+          <div class="row"><div class="k"><code>~/.config/zsh/.zprofile</code></div><div class="d">ставит Homebrew в начало PATH, иначе системный git перекрывает свежий</div></div>
+          <div class="row"><div class="k"><code>~/.config/zsh/.zshrc</code></div><div class="d">загрузчик: Oh-My-Zsh, тема, модули</div></div>
+          <div class="row"><div class="k"><code>~/.config/zsh/conf.d/</code></div><div class="d">00 опции · 10 клавиши · 20 инструменты · 30 алиасы</div></div>
+          <div class="row"><div class="k"><code>~/.config/git/config</code></div><div class="d">настройки и алиасы git</div></div>
+          <div class="row"><div class="k"><code>~/.config/nvim/init.lua</code></div><div class="d">весь конфиг редактора одним файлом</div></div>
+          <div class="row"><div class="k"><code>~/.config/lazygit/config.yml</code></div><div class="d">lazygit, со шпаргалкой в комментариях</div></div>
+          <div class="row"><div class="k"><code>~/.config/tig/config</code></div><div class="d">tig: колонки и свои клавиши</div></div>
+          <div class="row"><div class="k"><code>~/bin/sec</code></div><div class="d">сама команда для секретов</div></div>
+          <div class="row"><div class="k"><code>~/.config/zsh/conf.d/40-sec.zsh</code></div><div class="d">автодополнение sec и алиас <code>sc</code></div></div>
+        </div>
+      </div>
+
+      <div class="p paths">
+        <h3>Вне репозитория</h3>
+        <div class="rows">
+          <div class="row"><div class="k"><code>~/.config/git/identity</code></div><div class="d">имя и почта для коммитов<span class="tag">не в git</span></div></div>
+          <div class="row"><div class="k"><code>~/.config/zsh/local.zsh</code></div><div class="d">секреты и настройки этой машины<span class="tag">не в git</span></div></div>
+          <div class="row"><div class="k"><code>~/.local/state/zsh/history</code></div><div class="d">история команд</div></div>
+          <div class="row"><div class="k"><code>~/Library/Keychains/dev.keychain-db</code></div><div class="d">сами секреты<span class="tag">не в git</span></div></div>
+          <div class="row"><div class="k"><code>~/.dotfiles-backup/</code></div><div class="d">то, что установщик убрал с дороги</div></div>
+        </div>
+      </div>
+
+    </div>
+  </section>
+
+  <footer>
+    <span>Шпаргалка собрана по конфигам репозитория dotfiles.</span>
+    <span>Цвета — Catppuccin Latte и Mocha, те же, что в nvim и bat.</span>
+    <span>Нажмите <kbd>/</kbd> для фильтра.</span>
+    <span>Один файл, без интернета: <code>cheat</code> в терминале.</span>
+  </footer>
+
+</div>
+
+<script>
+(function () {
+  var q = document.getElementById('q');
+  var hint = document.getElementById('hint');
+  var body = document.body;
+  var secs = Array.prototype.slice.call(document.querySelectorAll('.sec'));
+  var panels = Array.prototype.slice.call(document.querySelectorAll('.p'));
+
+  // Текст каждой строки кешируем один раз: фильтр набирается посимвольно.
+  var rows = Array.prototype.slice.call(document.querySelectorAll('.row')).map(function (el) {
+    return { el: el, text: (el.textContent || '').toLowerCase(), panel: el.closest('.p') };
+  });
+  panels.forEach(function (p) {
+    p._head = (p.querySelector('h3') ? p.querySelector('h3').textContent : '').toLowerCase();
+  });
+
+  function apply(term) {
+    term = term.trim().toLowerCase();
+    if (!term) {
+      rows.forEach(function (r) { r.el.style.display = ''; });
+      panels.forEach(function (p) { p.classList.remove('has-hit'); });
+      secs.forEach(function (s) { s.classList.remove('has-hit'); });
+      body.classList.remove('filtering', 'no-hits');
+      hint.textContent = '/';
+      return;
+    }
+    var hits = 0;
+    panels.forEach(function (p) { p.classList.remove('has-hit'); });
+    rows.forEach(function (r) {
+      var show = r.text.indexOf(term) !== -1 || (r.panel && r.panel._head.indexOf(term) !== -1);
+      r.el.style.display = show ? '' : 'none';
+      if (show) { hits++; if (r.panel) r.panel.classList.add('has-hit'); }
+    });
+    secs.forEach(function (s) {
+      s.classList.toggle('has-hit', !!s.querySelector('.p.has-hit'));
+    });
+    body.classList.add('filtering');
+    body.classList.toggle('no-hits', hits === 0);
+    hint.textContent = hits;
+  }
+
+  q.addEventListener('input', function () { apply(q.value); });
+  q.addEventListener('keydown', function (e) {
+    if (e.key === 'Escape') { q.value = ''; apply(''); q.blur(); }
+  });
+  document.addEventListener('keydown', function (e) {
+    if (e.key === '/' && document.activeElement !== q) {
+      e.preventDefault();
+      q.focus();
+      q.select();
+    }
+  });
+})();
+</script>

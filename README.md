@@ -50,10 +50,25 @@ brew/           Brewfile.core (CLI) и Brewfile.apps (GUI)
 macos/          системные настройки через defaults write, Quick Look для Markdown
 sec/            dev-секреты в отдельном Keychain: sec add/get/cp/env, экспорт для переезда
 test/           тесты sec (make test)
-docs/           шпаргалки: k8s-cheatsheet.html — открыть в браузере
+docs/           шпаргалки: cheatsheet.html — весь конфиг (команда cheat), k8s-cheatsheet.html
 install.sh      интерактивный установщик; --check проверяет, что всё на месте
 Makefile        отдельные операции: make check, link, core, identity, lint
 ```
+
+## Шпаргалка
+
+```bash
+cheat        # открыть в браузере
+cheat -t     # текстом в терминале (нужен w3m или lynx)
+```
+
+[`docs/cheatsheet.html`](docs/cheatsheet.html) — один файл без внешних запросов: клавиши и
+команды zsh, git, forgit, lazygit, tig, Neovim и `sec`, плюс карта файлов конфига. Работает
+без интернета и не зависит от того, жив ли сейчас шелл. Нажмите `/` внутри страницы, чтобы
+отфильтровать её по подстроке.
+
+Шрифты берутся локальные: моноширинный — тот же `MesloLGS Nerd Font`, которым набран
+терминал. Цвета — Catppuccin Latte и Mocha, как в nvim и bat; тема следует за системной.
 
 ## Идентичности git
 

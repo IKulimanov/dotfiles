@@ -40,3 +40,24 @@ command -v nvim &>/dev/null && alias vim="nvim"
 
 # Быстрый доступ к самим dotfiles ($DOTFILES вычисляется в .zshenv)
 alias dot='cd "${DOTFILES:-$HOME/dotfiles}"'
+
+# ── Шпаргалка ──────────────────────────────────────────────────
+# Один HTML-файл в репозитории, без внешних запросов: открывается
+# без интернета и работает, даже когда сломан сам шелл.
+#   cheat        открыть в браузере
+#   cheat -t     показать в терминале (нужен lynx или w3m; иначе подскажет)
+cheat() {
+  local f="${DOTFILES:-$HOME/dotfiles}/docs/cheatsheet.html"
+  if [[ ! -f "$f" ]]; then
+    print -u2 "Шпаргалка не найдена: $f"
+    return 1
+  fi
+  if [[ "$1" == "-t" ]]; then
+    if command -v w3m &>/dev/null;   then w3m -dump "$f" | ${PAGER:-less}
+    elif command -v lynx &>/dev/null; then lynx -dump "$f" | ${PAGER:-less}
+    else print -u2 "Для текстового режима нужен w3m или lynx: brew install w3m"; return 1
+    fi
+  else
+    open "$f"
+  fi
+}
