@@ -144,6 +144,7 @@ require("lazy").setup({
         { "<leader>h", group = "hunk" },
         { "<leader>t", group = "toggle" },
         { "<leader>n", group = "notes" },
+        { "<leader>|", group = "table" },
       },
     },
   },
@@ -402,14 +403,18 @@ require("lazy").setup({
     },
   },
 
-  -- Таблицы выравниваются прямо при наборе: Space tm, дальше | и текст
+  -- Таблицы выравниваются прямо при наборе: Space tm, дальше | и текст; || — линия под заголовком.
+  -- Клавиши плагина отключать нельзя: вместе с ними пропадает и выравнивание по |.
+  -- Поэтому они перенесены с <leader>t (там переключатели) на <leader>|:
+  -- | r выровнять, | dd удалить строку, | dc удалить столбец, | ic вставить столбец.
   {
     "dhruvasagar/vim-table-mode",
     ft = { "markdown" },
     cmd = { "TableModeToggle", "TableModeEnable" },
     init = function()
       vim.g.table_mode_corner = "|"          -- разделитель в стиле GitHub
-      vim.g.table_mode_disable_mappings = 1  -- <leader>t* заняты под toggle
+      vim.g.table_mode_map_prefix = "<leader><Bar>"
+      vim.g.table_mode_tableize_d_map = "<leader><Bar>T"
     end,
   },
 
