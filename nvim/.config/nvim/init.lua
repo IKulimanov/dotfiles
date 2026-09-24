@@ -41,6 +41,10 @@ o.inccommand = "split"          -- превью замены при :%s/
 o.completeopt = "menu,menuone,noselect"
 o.list = true
 o.listchars = { tab = "→ ", trail = "·", nbsp = "␣" }
+-- Команды normal-режима работают и на русской раскладке: ц — это w, ф — это a.
+-- Команды через «:» по-прежнему набираются на английской.
+o.langmap = "ФИСВУАПРШОЛДЬТЩЗЙКЫЕГМЦЧНЯ;ABCDEFGHIJKLMNOPQRSTUVWXYZ,"
+  .. "фисвуапршолдьтщзйкыегмцчня;abcdefghijklmnopqrstuvwxyz"
 
 -- =====================================================
 -- Клавиши
@@ -102,6 +106,25 @@ vim.api.nvim_create_autocmd("TextYankPost", {
 })
 
 -- =====================================================
+-- Заметки (markdown)
+-- =====================================================
+-- Прозу читаем с мягким переносом по словам. Орфографию включаем, только когда
+-- есть русский словарь: без него каждое русское слово подчёркнуто как ошибка.
+-- Словарь ставится один раз: :set spell spelllang=ru — nvim сам предложит скачать.
+vim.api.nvim_create_autocmd("FileType", {
+  pattern = "markdown",
+  callback = function()
+    vim.opt_local.wrap = true
+    vim.opt_local.linebreak = true
+    vim.opt_local.conceallevel = 2
+    if #vim.api.nvim_get_runtime_file("spell/ru.utf-8.spl", false) > 0 then
+      vim.opt_local.spelllang = { "ru", "en" }
+      vim.opt_local.spell = true
+    end
+  end,
+})
+
+-- =====================================================
 -- Bootstrap lazy.nvim
 -- =====================================================
 local lazypath = vim.fn.stdpath("data") .. "/lazy/lazy.nvim"
@@ -136,6 +159,7 @@ require("lazy").setup({
         { "<leader>g", group = "git" },
         { "<leader>h", group = "hunk" },
         { "<leader>t", group = "toggle" },
+        { "<leader>n", group = "notes" },
       },
     },
   },
@@ -345,6 +369,51 @@ require("lazy").setup({
     dependencies = { "nvim-treesitter/nvim-treesitter" },
     ft = { "markdown" },
     opts = {},
+  },
+  -- Рабочий vault ~/docs/work: переход по [[ссылкам]], обратные ссылки, новые заметки, шаблоны.
+  -- Рисует render-markdown, поэтому свой UI у obsidian.nvim выключен. Frontmatter не пишем:
+  -- в рабочих заметках его нет, и так они одинаково открываются здесь и в Obsidian.
+  {
+    "obsidian-nvim/obsidian.nvim",
+    version = "*",
+    -- Грузим до чтения файла и только для заметок vault: при загрузке по ft встроенный
+    -- LSP не цепляется к первому открытому буферу, и переход по [[ссылке]] не работает.
+    -- В шаблоне автокоманды * захватывает и подкаталоги.
+    event = {
+      "BufReadPre " .. vim.fn.expand("~/docs/work") .. "/*.md",
+      "BufNewFile " .. vim.fn.expand("~/docs/work") .. "/*.md",
+    },
+    cmd = "Obsidian",
+    dependencies = { "nvim-telescope/telescope.nvim" },  -- иначе при ленивой загрузке выбор заметок без picker'а
+    keys = {
+      { "<leader>nn", "<cmd>Obsidian new<CR>",       desc = "Новая заметка (inbox)" },
+      { "<leader>nb", "<cmd>Obsidian backlinks<CR>", desc = "Обратные ссылки" },
+      { "<leader>nt", "<cmd>Obsidian template<CR>",  desc = "Вставить шаблон" },
+      { "<leader>no", "<cmd>Obsidian open<CR>",      desc = "Открыть в Obsidian" },
+      -- Поиск с --follow: шаблоны и регламенты лежат в vault по симлинку process/playbook.
+      -- Глобально follow не включаем, чтобы не лезть в симлинки node_modules других проектов.
+      { "<leader>nf", function()
+        require("telescope.builtin").find_files({ cwd = vim.fn.expand("~/docs/work"), follow = true })
+      end, desc = "Файл в vault" },
+      { "<leader>ns", function()
+        require("telescope.builtin").live_grep({ cwd = vim.fn.expand("~/docs/work"), additional_args = { "--follow" } })
+      end, desc = "Поиск по vault" },
+    },
+    opts = {
+      legacy_commands = false,
+      workspaces = { { name = "work", path = "~/docs/work" } },
+      notes_subdir = "inbox",
+      new_notes_location = "notes_subdir",
+      -- Имя файла — сам заголовок, как в Obsidian; без заголовка — дата и время
+      note_id_func = function(title)
+        return (title and title ~= "") and title or os.date("%Y-%m-%d %H%M")
+      end,
+      frontmatter = { enabled = false },
+      templates = { folder = "process/playbook/templates", date_format = "%Y-%m-%d" },
+      attachments = { folder = "attachments" },
+      picker = { name = "telescope.nvim" },
+      ui = { enable = false },
+    },
   },
 
   -- ── Логи: подсветка уровней и таймстампов ─────────
