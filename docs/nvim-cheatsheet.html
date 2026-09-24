@@ -1,0 +1,1215 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Шпаргалка по Neovim</title>
+
+<style>
+/* ───────────────────────────────────────────────────────────
+   Та же палитра и те же компоненты, что в cheatsheet.html:
+   Catppuccin Latte (светлая) и Mocha (тёмная), как в nvim и bat.
+   ─────────────────────────────────────────────────────────── */
+:root {
+  --bg:        #eff1f5;
+  --bg-header: #e6e9efee;
+  --panel:     #ffffff;
+  --line:      #ccd0da;
+  --line-soft: #dce0e8;
+  --ink:       #4c4f69;
+  --ink-dim:   #6c6f85;
+  --ink-faint: #8c8fa1;
+  --key-bg:    #eff1f5;
+  --key-line:  #bcc0cc;
+  --key-ink:   #4c4f69;
+
+  --shell: #1e66f5;
+  --git:   #d9640b;
+  --vim:   #8839ef;
+  --tui:   #179299;
+  --ops:   #40a02b;
+  /* Catppuccin Latte yellow (#df8e1d) не читается мелким текстом на светлом фоне */
+  --sec:   #96650a;
+  --warn:  #d20f39;
+
+  --shell-wash: #1e66f514;
+  --git-wash:   #d9640b14;
+  --vim-wash:   #8839ef14;
+  --tui-wash:   #17929914;
+  --ops-wash:   #40a02b14;
+  --sec-wash:   #96650a14;
+
+  --radius: 8px;
+  /* Только системные и уже установленные шрифты: страница открывается без интернета */
+  --f-sans:    -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", Roboto, sans-serif;
+  --f-display: ui-serif, "New York", "Iowan Old Style", Georgia, serif;
+  --f-mono:    "MesloLGS Nerd Font Mono", "MesloLGS NF", ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg:        #1e1e2e;
+    --bg-header: #181825ee;
+    --panel:     #24243440;
+    --line:      #313244;
+    --line-soft: #2a2a3c;
+    --ink:       #cdd6f4;
+    --ink-dim:   #a6adc8;
+    --ink-faint: #7f849c;
+    --key-bg:    #313244;
+    --key-line:  #45475a;
+    --key-ink:   #cdd6f4;
+
+    --shell: #89b4fa;
+    --git:   #fab387;
+    --vim:   #cba6f7;
+    --tui:   #94e2d5;
+    --ops:   #a6e3a1;
+    --sec:   #f9e2af;
+    --warn:  #f38ba8;
+
+    --shell-wash: #89b4fa1a;
+    --git-wash:   #fab3871a;
+    --vim-wash:   #cba6f71a;
+    --tui-wash:   #94e2d51a;
+    --ops-wash:   #a6e3a11a;
+    --sec-wash:   #f9e2af1a;
+  }
+}
+
+:root[data-theme="dark"] {
+  --bg:        #1e1e2e;
+  --bg-header: #181825ee;
+  --panel:     #24243440;
+  --line:      #313244;
+  --line-soft: #2a2a3c;
+  --ink:       #cdd6f4;
+  --ink-dim:   #a6adc8;
+  --ink-faint: #7f849c;
+  --key-bg:    #313244;
+  --key-line:  #45475a;
+  --key-ink:   #cdd6f4;
+
+  --shell: #89b4fa;
+  --git:   #fab387;
+  --vim:   #cba6f7;
+  --tui:   #94e2d5;
+  --ops:   #a6e3a1;
+  --sec:   #f9e2af;
+  --warn:  #f38ba8;
+
+  --shell-wash: #89b4fa1a;
+  --git-wash:   #fab3871a;
+  --vim-wash:   #cba6f71a;
+  --tui-wash:   #94e2d51a;
+  --ops-wash:   #a6e3a11a;
+  --sec-wash:   #f9e2af1a;
+}
+
+/* ─── Каркас ─────────────────────────────────────────────── */
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--ink);
+  font-family: var(--f-sans);
+  font-size: 14px;
+  line-height: 1.45;
+  -webkit-font-smoothing: antialiased;
+}
+
+.wrap { max-width: 1760px; margin: 0 auto; padding: 0 20px 72px; }
+
+/* ─── Шапка ──────────────────────────────────────────────── */
+.bar {
+  position: sticky; top: 0; z-index: 20;
+  background: var(--bg-header);
+  backdrop-filter: blur(10px);
+  border-bottom: 1px solid var(--line);
+  margin: 0 -20px 22px;
+  padding: 10px 20px;
+  display: flex; flex-wrap: wrap; align-items: center; gap: 10px 18px;
+}
+.brand { display: flex; align-items: baseline; gap: 10px; margin-right: auto; }
+.brand h1 {
+  font-family: var(--f-display);
+  font-size: 16px; font-weight: 600; letter-spacing: -0.005em; margin: 0;
+  text-wrap: balance;
+}
+.brand .sub { font-family: var(--f-mono); font-size: 11px; color: var(--ink-faint); }
+
+.pages { display: flex; gap: 12px; font-size: 11.5px; }
+.pages a { color: var(--ink-dim); text-decoration: none; border-bottom: 1px dotted var(--ink-faint); }
+.pages a:hover { color: var(--ink); border-bottom-style: solid; }
+.pages a:focus-visible { outline: 2px solid var(--shell); outline-offset: 2px; }
+
+.find { position: relative; display: flex; align-items: center; }
+.find input {
+  font-family: var(--f-mono); font-size: 12.5px;
+  color: var(--ink); background: var(--panel);
+  border: 1px solid var(--line); border-radius: 6px;
+  padding: 6px 60px 6px 11px; width: 260px;
+}
+.find input::placeholder { color: var(--ink-faint); }
+.find input:focus { outline: 2px solid var(--shell); outline-offset: 1px; border-color: transparent; }
+.find .hint {
+  position: absolute; right: 9px; pointer-events: none;
+  font-family: var(--f-mono); font-size: 10.5px; color: var(--ink-faint);
+}
+
+.jump { display: flex; flex-wrap: wrap; gap: 6px; flex-basis: 100%; }
+.jump a {
+  font-size: 11.5px; font-weight: 500; text-decoration: none;
+  color: var(--ink-dim); border: 1px solid var(--line);
+  border-radius: 999px; padding: 3px 11px;
+}
+.jump a:hover { color: var(--ink); border-color: var(--ink-faint); }
+.jump a:focus-visible { outline: 2px solid var(--shell); outline-offset: 2px; }
+.jump a[data-c="shell"]:hover { color: var(--shell); border-color: var(--shell); }
+.jump a[data-c="git"]:hover   { color: var(--git);   border-color: var(--git); }
+.jump a[data-c="tui"]:hover   { color: var(--tui);   border-color: var(--tui); }
+.jump a[data-c="vim"]:hover   { color: var(--vim);   border-color: var(--vim); }
+.jump a[data-c="ops"]:hover   { color: var(--ops);   border-color: var(--ops); }
+.jump a[data-c="sec"]:hover   { color: var(--sec);   border-color: var(--sec); }
+
+/* ─── Разделы ────────────────────────────────────────────── */
+.sec { scroll-margin-top: 104px; margin-bottom: 34px; }
+.sec-head {
+  display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 12px;
+  padding: 0 0 8px 12px;
+  border-left: 3px solid var(--accent);
+  margin-bottom: 14px;
+}
+.sec-head h2 {
+  font-family: var(--f-display);
+  font-size: 19px; font-weight: 600; letter-spacing: -0.005em; margin: 0;
+  color: var(--accent);
+}
+.sec-head p { margin: 0; font-size: 12.5px; color: var(--ink-dim); max-width: 72ch; }
+
+.sec[data-c="shell"] { --accent: var(--shell); --wash: var(--shell-wash); }
+.sec[data-c="git"]   { --accent: var(--git);   --wash: var(--git-wash); }
+.sec[data-c="tui"]   { --accent: var(--tui);   --wash: var(--tui-wash); }
+.sec[data-c="vim"]   { --accent: var(--vim);   --wash: var(--vim-wash); }
+.sec[data-c="ops"]   { --accent: var(--ops);   --wash: var(--ops-wash); }
+.sec[data-c="sec"]   { --accent: var(--sec);   --wash: var(--sec-wash); }
+
+.grid {
+  display: grid; gap: 14px;
+  grid-template-columns: repeat(auto-fill, minmax(330px, 1fr));
+  align-items: start;
+}
+
+/* ─── Панель ─────────────────────────────────────────────── */
+.p {
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  padding: 12px 14px 13px;
+  overflow-x: auto;
+}
+.p > h3 {
+  font-size: 10.5px; font-weight: 600; text-transform: uppercase;
+  letter-spacing: 0.09em; color: var(--accent);
+  margin: 0 0 9px;
+}
+.p > .note {
+  margin: 9px 0 0; padding-top: 9px; border-top: 1px dashed var(--line);
+  font-size: 12px; color: var(--ink-dim);
+}
+.p.wide { grid-column: span 2; }
+@media (max-width: 760px) { .p.wide { grid-column: span 1; } }
+
+/* Колонка клавиш не шире половины панели: длинное сочетание переносится,
+   а не сжимает описание в узкую полоску */
+.rows { display: grid; grid-template-columns: fit-content(48%) minmax(0, 1fr); column-gap: 14px; }
+.row { display: contents; }
+.row > * { padding: 3.5px 0; border-top: 1px solid var(--line-soft); }
+.row:first-of-type > * { border-top: 0; padding-top: 0; }
+.row > .d { color: var(--ink-dim); font-size: 12.5px; }
+.row > .k { white-space: normal; }
+
+/* ─── Формула команды: оператор + число + движение ───────── */
+.formula { display: flex; flex-wrap: wrap; align-items: stretch; gap: 8px; margin: 0 0 12px; }
+.formula .slot {
+  flex: 1 1 170px;
+  border: 1px solid var(--line); border-radius: 6px;
+  background: var(--wash); padding: 8px 10px;
+}
+.formula .slot b { display: block; font-size: 12.5px; font-weight: 600; color: var(--accent); }
+.formula .slot span { display: block; margin-top: 3px; font-family: var(--f-mono); font-size: 11.5px; color: var(--ink-dim); }
+.formula .plus { align-self: center; font-family: var(--f-mono); font-size: 15px; color: var(--ink-faint); }
+
+/* ─── Клавиши и команды ──────────────────────────────────── */
+kbd {
+  display: inline-block;
+  font-family: var(--f-mono); font-size: 11.5px; font-weight: 500;
+  line-height: 1.3;
+  color: var(--key-ink); background: var(--key-bg);
+  border: 1px solid var(--key-line); border-bottom-width: 2px;
+  border-radius: 4px; padding: 1px 5px;
+  white-space: nowrap;
+}
+code {
+  font-family: var(--f-mono); font-size: 12px; font-weight: 500;
+  color: var(--accent, var(--ink));
+  white-space: nowrap;
+}
+.d code { color: var(--ink); font-weight: 400; white-space: normal; }
+.note code { color: var(--ink); font-weight: 400; white-space: normal; }
+.sep { color: var(--ink-faint); font-size: 11px; padding: 0 1px; }
+.tag {
+  font-family: var(--f-mono); font-size: 10px; font-weight: 500;
+  color: var(--warn); border: 1px solid var(--warn); border-radius: 3px;
+  padding: 0 4px; margin-left: 6px; white-space: nowrap;
+}
+
+/* ─── Пусто ──────────────────────────────────────────────── */
+.empty {
+  display: none; padding: 40px 4px; color: var(--ink-dim);
+  font-family: var(--f-mono); font-size: 13px;
+}
+body.filtering .sec:not(.has-hit) { display: none; }
+body.filtering .p:not(.has-hit)   { display: none; }
+body.filtering .formula           { display: none; }
+body.no-hits .empty { display: block; }
+
+footer {
+  margin-top: 34px; padding-top: 14px; border-top: 1px solid var(--line);
+  font-size: 11.5px; color: var(--ink-faint);
+  display: flex; flex-wrap: wrap; gap: 4px 18px;
+}
+footer code { color: var(--ink-faint); }
+
+@media (max-width: 520px) {
+  .wrap { padding: 0 16px 56px; }
+  /* На телефоне шапка с разделами занимала бы треть экрана — пусть уезжает вверх */
+  .bar { position: static; margin: 0 -16px 18px; padding: 10px 16px; }
+  .find input { width: 100%; }
+  .find { flex: 1 1 100%; }
+  .grid { grid-template-columns: minmax(0, 1fr); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  * { animation: none !important; transition: none !important; }
+}
+
+@media print {
+  .bar, footer { display: none; }
+  body { background: #fff; color: #000; font-size: 10px; }
+  .grid { grid-template-columns: repeat(3, 1fr); }
+  .p { break-inside: avoid; border-color: #bbb; }
+}
+</style>
+</head>
+<body>
+
+<div class="wrap">
+
+  <header class="bar">
+    <div class="brand">
+      <h1>Шпаргалка по Neovim</h1>
+      <span class="sub">Space — leader · забыли клавишу: Space и пауза</span>
+    </div>
+    <nav class="pages" aria-label="Другие шпаргалки">
+      <a href="cheatsheet.html">весь конфиг</a>
+      <a href="k8s-cheatsheet.html">kubernetes</a>
+    </nav>
+    <div class="find">
+      <input id="q" type="search" placeholder="фильтр: ciw, окно, таблица…" aria-label="Фильтр" autocomplete="off" spellcheck="false">
+      <span class="hint" id="hint">/</span>
+    </div>
+    <nav class="jump" aria-label="Разделы">
+      <a href="#start" data-c="vim">Начало</a>
+      <a href="#move" data-c="shell">Движение</a>
+      <a href="#edit" data-c="git">Правка</a>
+      <a href="#visual" data-c="tui">Выделение</a>
+      <a href="#search" data-c="tui">Поиск и замена</a>
+      <a href="#files" data-c="ops">Файлы и окна</a>
+      <a href="#code" data-c="vim">Код и LSP</a>
+      <a href="#git" data-c="git">Git</a>
+      <a href="#md" data-c="sec">Markdown</a>
+      <a href="#notes" data-c="sec">Заметки</a>
+      <a href="#logs" data-c="tui">Логи</a>
+      <a href="#regs" data-c="shell">Регистры и макросы</a>
+      <a href="#cmd" data-c="ops">Командная строка</a>
+      <a href="#help" data-c="vim">Если застрял</a>
+    </nav>
+  </header>
+
+  <p class="empty">ничего не нашлось — Esc сбрасывает фильтр</p>
+
+  <!-- ═══════════════ НАЧАЛО ═══════════════ -->
+  <section class="sec" id="start" data-c="vim">
+    <div class="sec-head">
+      <h2>С чего начать</h2>
+      <p>В nvim клавиши — это команды. Печатать текст можно только в режиме вставки, всё остальное время буквы двигают курсор и правят текст.</p>
+    </div>
+    <div class="grid">
+
+      <div class="p">
+        <h3>Режимы</h3>
+        <div class="rows">
+          <div class="row"><div class="k"><kbd>Esc</kbd></div><div class="d">вернуться в обычный режим (Normal). Непонятно, что происходит, — жмите Esc</div></div>
+          <div class="row"><div class="k"><kbd>i</kbd> <kbd>a</kbd> <kbd>o</kbd></div><div class="d">начать печатать (Insert): перед курсором, после него, с новой строки</div></div>
+          <div class="row"><div class="k"><kbd>v</kbd> <kbd>V</kbd> <kbd>Ctrl</kbd>+<kbd>v</kbd></div><div class="d">выделение (Visual): по символам, строками, блоком</div></div>
+          <div class="row"><div class="k"><kbd>:</kbd></div><div class="d">командная строка: <code>:w</code>, <code>:q</code>, <code>:%s/…</code></div></div>
+          <div class="row"><div class="k"><kbd>Ctrl</kbd>+<kbd>o</kbd></div><div class="d">в режиме вставки — выполнить одну команду и вернуться к набору</div></div>
+        </div>
+        <p class="note">Режим виден внизу слева, в строке состояния.</p>
+      </div>
+
+      <div class="p">
+        <h3>Сохранить и выйти</h3>
+        <div class="rows">
+          <div class="row"><div class="k"><kbd>Space</kbd> <kbd>w</kbd></div><div class="d">сохранить</div></div>
+          <div class="row"><div class="k"><kbd>Space</kbd> <kbd>q</kbd></div><div class="d">закрыть окно; с несохранёнными правками спросит</div></div>
+          <div class="row"><div class="k"><code>:wq</code> <span class="sep">·</span> <code>ZZ</code></div><div class="d">сохранить и выйти</div></div>
+          <div class="row"><div class="k"><code>:q!</code> <span class="sep">·</span> <code>ZQ</code></div><div class="d">выйти без сохранения</div></div>
+          <div class="row"><div class="k"><code>:wa</code> <span class="sep">·</span> <code>:qa</code></div><div class="d">сохранить все файлы · закрыть всё</div></div>
+          <div class="row"><div class="k"><code>:e!</code></div><div class="d">выбросить правки и перечитать файл с диска</div></div>
+        </div>
+      </div>
+
+      <div class="p wide">
+        <h3>Главная идея: команда = оператор + движение</h3>
+        <div class="formula">
+          <div class="slot"><b>оператор — что сделать</b><span>d удалить · c заменить · y скопировать · &gt; сдвинуть · gc закомментировать</span></div>
+          <div class="plus">+</div>
+          <div class="slot"><b>число — сколько раз</b><span>необязательно: 3, 10</span></div>
+          <div class="plus">+</div>
+          <div class="slot"><b>движение или объект — над чем</b><span>w слово · $ до конца строки · } до абзаца · iw слово целиком · i" в кавычках</span></div>
+        </div>
+        <div class="rows">
+          <div class="row"><div class="k"><code>dw</code></div><div class="d">удалить до начала следующего слова</div></div>
+          <div class="row"><div class="k"><code>d3w</code></div><div class="d">удалить три слова</div></div>
+          <div class="row"><div class="k"><code>ciw</code></div><div class="d">заменить слово под курсором: удалить и сразу печатать новое</div></div>
+          <div class="row"><div class="k"><code>ci"</code></div><div class="d">заменить текст в кавычках</div></div>
+          <div class="row"><div class="k"><code>yap</code></div><div class="d">скопировать абзац</div></div>
+          <div class="row"><div class="k"><code>gUiw</code></div><div class="d">слово в ВЕРХНИЙ регистр</div></div>
+          <div class="row"><div class="k"><code>dd</code> <code>yy</code> <code>cc</code> <code>&gt;&gt;</code> <code>gcc</code></div><div class="d">оператор дважды — действие над всей строкой</div></div>
+          <div class="row"><div class="k"><kbd>.</kbd> <span class="sep">·</span> <kbd>u</kbd></div><div class="d">повторить последнюю правку · отменить</div></div>
+        </div>
+        <p class="note">Пять операторов и десять движений дают полсотни команд: учить нужно части, а не сочетания.</p>
+      </div>
+
+      <div class="p">
+        <h3>Минимум на первый день</h3>
+        <div class="rows">
+          <div class="row"><div class="k"><kbd>h</kbd> <kbd>j</kbd> <kbd>k</kbd> <kbd>l</kbd></div><div class="d">влево, вниз, вверх, вправо</div></div>
+          <div class="row"><div class="k"><kbd>w</kbd> <kbd>b</kbd></div><div class="d">на слово вперёд · назад</div></div>
+          <div class="row"><div class="k"><code>gg</code> <kbd>G</kbd></div><div class="d">в начало · в конец файла</div></div>
+          <div class="row"><div class="k"><code>/текст</code> <kbd>n</kbd></div><div class="d">найти · следующее совпадение</div></div>
+          <div class="row"><div class="k"><kbd>i</kbd> <span class="sep">…</span> <kbd>Esc</kbd></div><div class="d">напечатать текст и вернуться</div></div>
+          <div class="row"><div class="k"><code>dd</code> <code>yy</code> <kbd>p</kbd></div><div class="d">вырезать строку · скопировать строку · вставить</div></div>
+          <div class="row"><div class="k"><kbd>u</kbd> <kbd>Ctrl</kbd>+<kbd>r</kbd></div><div class="d">отменить · вернуть</div></div>
+          <div class="row"><div class="k"><kbd>Space</kbd> <kbd>f</kbd> <span class="sep">·</span> <kbd>Space</kbd> <kbd>s</kbd></div><div class="d">найти файл · найти текст в проекте</div></div>
+          <div class="row"><div class="k"><kbd>Space</kbd> <kbd>w</kbd> <span class="sep">·</span> <kbd>Space</kbd> <kbd>q</kbd></div><div class="d">сохранить · закрыть</div></div>
+        </div>
+      </div>
+
+      <div class="p">
+        <h3>Русская раскладка</h3>
+        <div class="rows">
+          <div class="row"><div class="k">команды Normal</div><div class="d">работают и на русской: <kbd>ц</kbd> — это <kbd>w</kbd>, <kbd>в</kbd> — <kbd>d</kbd>, <kbd>н</kbd> — <kbd>y</kbd>, <kbd>о</kbd> <kbd>л</kbd> — <kbd>j</kbd> <kbd>k</kbd></div></div>
+          <div class="row"><div class="k"><kbd>:</kbd> и <kbd>/</kbd></div><div class="d">командную строку и поиск набирайте на английской</div></div>
+          <div class="row"><div class="k">не работают</div><div class="d"><kbd>.</kbd> <kbd>[</kbd> <kbd>]</kbd> <kbd>;</kbd> <kbd>,</kbd> <kbd>'</kbd> <kbd>`</kbd> — на русской на их местах буквы ю х ъ ж б э ё</div></div>
+          <div class="row"><div class="k">режим вставки</div><div class="d">не затронут: печатаете по-русски как обычно</div></div>
+        </div>
+        <p class="note">Сделано опцией <code>langmap</code> в init.lua.</p>
+      </div>
+
+    </div>
+  </section>
+
+  <!-- ═══════════════ ДВИЖЕНИЕ ═══════════════ -->
+  <section class="sec" id="move" data-c="shell">
+    <div class="sec-head">
+      <h2>Движение</h2>
+      <p>Перед любым движением можно поставить число: <code>5j</code> — пять строк вниз, <code>3w</code> — три слова вперёд.</p>
+    </div>
+    <div class="grid">
+
+      <div class="p">
+        <h3>По строке</h3>
+        <div class="rows">
+          <div class="row"><div class="k"><kbd>w</kbd> <kbd>b</kbd> <kbd>e</kbd></div><div class="d">начало следующего слова · начало предыдущего · конец слова</div></div>
+          <div class="row"><div class="k"><kbd>W</kbd> <kbd>B</kbd> <kbd>E</kbd></div><div class="d">то же, но слово — всё до пробела: удобно для путей и URL</div></div>
+          <div class="row"><div class="k"><kbd>0</kbd> <kbd>^</kbd> <kbd>$</kbd></div><div class="d">начало строки · первый непробельный символ · конец строки</div></div>
+          <div class="row"><div class="k"><kbd>f</kbd><code>x</code> <span class="sep">·</span> <kbd>F</kbd><code>x</code></div><div class="d">прыгнуть на символ x вправо · влево</div></div>
+          <div class="row"><div class="k"><kbd>t</kbd><code>x</code> <span class="sep">·</span> <kbd>T</kbd><code>x</code></div><div class="d">встать перед символом x: <code>dt)</code> удалит до скобки</div></div>
+          <div class="row"><div class="k"><kbd>;</kbd> <kbd>,</kbd></div><div class="d">повторить f или t вперёд · назад</div></div>
+          <div class="row"><div class="k"><kbd>%</kbd></div><div class="d">на парную скобку</div></div>
+        </div>
+      </div>
+
+      <div class="p">
+        <h3>По файлу</h3>
+        <div class="rows">
+          <div class="row"><div class="k"><kbd>j</kbd> <kbd>k</kbd></div><div class="d">строка вниз · вверх; <code>7j</code> — вниз к строке, у которой слева 7, выше — <code>7k</code></div></div>
+          <div class="row"><div class="k"><code>gg</code> <kbd>G</kbd></div><div class="d">начало · конец файла</div></div>
+          <div class="row"><div class="k"><code>42G</code> <span class="sep">·</span> <code>:42</code></div><div class="d">на строку 42</div></div>
+          <div class="row"><div class="k"><kbd>{</kbd> <kbd>}</kbd></div><div class="d">к пустой строке выше · ниже: по абзацам и блокам кода</div></div>
+          <div class="row"><div class="k"><kbd>Ctrl</kbd>+<kbd>d</kbd> <kbd>Ctrl</kbd>+<kbd>u</kbd></div><div class="d">полэкрана вниз · вверх</div></div>
+          <div class="row"><div class="k"><kbd>H</kbd> <kbd>M</kbd> <kbd>L</kbd></div><div class="d">верх · середина · низ экрана</div></div>
+          <div class="row"><div class="k"><code>zz</code> <code>zt</code> <code>zb</code></div><div class="d">прокрутить: строка с курсором в центре · вверху · внизу</div></div>
+        </div>
+        <p class="note">Номера строк слева относительные: они показывают, сколько строк до цели. У строки с курсором — настоящий номер.</p>
+      </div>
+
+      <div class="p">
+        <h3>Прыжки и метки</h3>
+        <div class="rows">
+          <div class="row"><div class="k"><kbd>Ctrl</kbd>+<kbd>o</kbd> <span class="sep">·</span> <kbd>Ctrl</kbd>+<kbd>i</kbd></div><div class="d">назад · вперёд по истории прыжков, в том числе между файлами</div></div>
+          <div class="row"><div class="k"><kbd>*</kbd> <kbd>#</kbd></div><div class="d">следующее · предыдущее вхождение слова под курсором</div></div>
+          <div class="row"><div class="k"><code>ma</code> <span class="sep">·</span> <code>`a</code></div><div class="d">поставить метку a · вернуться к ней</div></div>
+          <div class="row"><div class="k"><code>mA</code> <span class="sep">·</span> <code>`A</code></div><div class="d">заглавная метка работает между файлами</div></div>
+          <div class="row"><div class="k"><code>`.</code> <span class="sep">·</span> <code>gi</code></div><div class="d">к месту последней правки · туда же сразу в режим вставки</div></div>
+          <div class="row"><div class="k"><code>gd</code></div><div class="d">к определению (LSP)</div></div>
+          <div class="row"><div class="k"><code>gf</code> <span class="sep">·</span> <code>gx</code></div><div class="d">открыть файл по пути под курсором · открыть ссылку в браузере</div></div>
+        </div>
+      </div>
+
+    </div>
+  </section>
+
+  <!-- ═══════════════ ПРАВКА ═══════════════ -->
+  <section class="sec" id="edit" data-c="git">
+    <div class="sec-head">
+      <h2>Правка</h2>
+      <p>Всё скопированное и удалённое сразу попадает в системный буфер обмена: <kbd>y</kbd> в nvim и <kbd>⌘</kbd>+<kbd>V</kbd> в браузере работают вместе.</p>
+    </div>
+    <div class="grid">
+
+      <div class="p">
+        <h3>Начать печатать</h3>
+        <div class="rows">
+          <div class="row"><div class="k"><kbd>i</kbd> <kbd>a</kbd></div><div class="d">перед курсором · после курсора</div></div>
+          <div class="row"><div class="k"><kbd>I</kbd> <kbd>A</kbd></div><div class="d">в начале · в конце строки</div></div>
+          <div class="row"><div class="k"><kbd>o</kbd> <kbd>O</kbd></div><div class="d">новая строка ниже · выше</div></div>
+          <div class="row"><div class="k"><kbd>s</kbd></div><div class="d">заменить символ под курсором</div></div>
+          <div class="row"><div class="k"><code>cc</code> <span class="sep">·</span> <kbd>S</kbd></div><div class="d">заменить всю строку, отступ сохранится</div></div>
+          <div class="row"><div class="k"><kbd>C</kbd></div><div class="d">заменить от курсора до конца строки</div></div>
+        </div>
+      </div>
+
+      <div class="p">
+        <h3>Удалить, скопировать, вставить</h3>
+        <div class="rows">
+          <div class="row"><div class="k"><kbd>x</kbd></div><div class="d">удалить символ</div></div>
+          <div class="row"><div class="k"><code>dd</code> <span class="sep">·</span> <code>3dd</code></div><div class="d">вырезать строку · три строки</div></div>
+          <div class="row"><div class="k"><kbd>D</kbd></div><div class="d">удалить до конца строки</div></div>
+          <div class="row"><div class="k"><code>yy</code> <span class="sep">·</span> <kbd>Y</kbd></div><div class="d">скопировать строку · до конца строки</div></div>
+          <div class="row"><div class="k"><kbd>p</kbd> <kbd>P</kbd></div><div class="d">вставить после · перед курсором (строку — ниже · выше)</div></div>
+          <div class="row"><div class="k"><kbd>r</kbd><code>x</code> <span class="sep">·</span> <kbd>R</kbd></div><div class="d">заменить один символ на x · режим замены поверх текста</div></div>
+          <div class="row"><div class="k"><kbd>J</kbd></div><div class="d">склеить строку со следующей</div></div>
+          <div class="row"><div class="k"><code>xp</code> <span class="sep">·</span> <code>ddp</code></div><div class="d">поменять местами два символа · две строки</div></div>
+        </div>
+        <p class="note">Удалить, не затирая буфер обмена: <code>"_d</code> — подробнее в разделе про регистры.</p>
+      </div>
+
+      <div class="p">
+        <h3>Операторы</h3>
+        <div class="rows">
+          <div class="row"><div class="k"><kbd>d</kbd></div><div class="d">удалить</div></div>
+          <div class="row"><div class="k"><kbd>c</kbd></div><div class="d">удалить и начать печатать</div></div>
+          <div class="row"><div class="k"><kbd>y</kbd></div><div class="d">скопировать</div></div>
+          <div class="row"><div class="k"><kbd>&gt;</kbd> <kbd>&lt;</kbd></div><div class="d">сдвинуть отступ вправо · влево</div></div>
+          <div class="row"><div class="k"><kbd>=</kbd></div><div class="d">выровнять отступы по языку</div></div>
+          <div class="row"><div class="k"><code>gu</code> <code>gU</code> <code>g~</code></div><div class="d">в нижний · в верхний регистр · поменять регистр</div></div>
+          <div class="row"><div class="k"><code>gc</code></div><div class="d">закомментировать: <code>gcc</code> — строку, <code>gcip</code> — абзац</div></div>
+        </div>
+        <p class="note">Оператор, набранный дважды, работает со всей строкой: <code>dd</code>, <code>yy</code>, <code>cc</code>, <code>&gt;&gt;</code>, <code>gcc</code>, <code>guu</code>.</p>
+      </div>
+
+      <div class="p wide">
+        <h3>Текстовые объекты: i — внутри, a — вместе с границами</h3>
+        <div class="rows">
+          <div class="row"><div class="k"><code>iw</code> <span class="sep">·</span> <code>aw</code></div><div class="d">слово · слово вместе с пробелом после него</div></div>
+          <div class="row"><div class="k"><code>is</code> <span class="sep">·</span> <code>ip</code></div><div class="d">предложение · абзац</div></div>
+          <div class="row"><div class="k"><code>i"</code> <code>i'</code> <code>i`</code></div><div class="d">внутри кавычек; с <code>a</code> — вместе с кавычками</div></div>
+          <div class="row"><div class="k"><code>i(</code> <code>i{</code> <code>i[</code> <code>i&lt;</code></div><div class="d">внутри скобок: круглых, фигурных, квадратных, угловых</div></div>
+          <div class="row"><div class="k"><code>it</code> <span class="sep">·</span> <code>at</code></div><div class="d">внутри HTML- или XML-тега · вместе с тегом</div></div>
+          <div class="row"><div class="k"><code>gc</code></div><div class="d">весь блок комментария: <code>dgc</code> удалит его</div></div>
+          <div class="row"><div class="k"><code>ciw</code> <code>ci"</code> <code>da(</code></div><div class="d">заменить слово · заменить строку в кавычках · удалить скобки с содержимым</div></div>
+          <div class="row"><div class="k"><code>yi{</code> <code>vip</code> <code>cit</code></div><div class="d">скопировать тело блока · выделить абзац · заменить содержимое тега</div></div>
+        </div>
+        <p class="note">Курсор не нужно ставить на начало: <code>ciw</code> работает из середины слова, <code>ci"</code> — даже если курсор левее кавычек на той же строке.</p>
+      </div>
+
+      <div class="p">
+        <h3>Мелочи, которые экономят время</h3>
+        <div class="rows">
+          <div class="row"><div class="k"><kbd>.</kbd></div><div class="d">повторить последнюю правку в новом месте</div></div>
+          <div class="row"><div class="k"><kbd>~</kbd></div><div class="d">поменять регистр символа</div></div>
+          <div class="row"><div class="k"><kbd>Ctrl</kbd>+<kbd>a</kbd> <kbd>Ctrl</kbd>+<kbd>x</kbd></div><div class="d">число под курсором +1 · −1; <code>5</code> перед ними — на 5</div></div>
+          <div class="row"><div class="k"><code>&gt;&gt;</code> <code>&lt;&lt;</code></div><div class="d">сдвинуть строку вправо · влево</div></div>
+          <div class="row"><div class="k"><code>[&#9251;</code> <code>]&#9251;</code></div><div class="d"><kbd>[</kbd> или <kbd>]</kbd> и пробел — пустая строка выше · ниже, курсор остаётся на месте</div></div>
+          <div class="row"><div class="k"><kbd>J</kbd> <kbd>K</kbd> в выделении</div><div class="d">двигать выделенные строки вниз · вверх</div></div>
+        </div>
+      </div>
+
+      <div class="p">
+        <h3>В режиме вставки</h3>
+        <div class="rows">
+          <div class="row"><div class="k"><kbd>Ctrl</kbd>+<kbd>w</kbd></div><div class="d">стереть слово слева</div></div>
+          <div class="row"><div class="k"><kbd>Ctrl</kbd>+<kbd>u</kbd></div><div class="d">стереть всё набранное в строке</div></div>
+          <div class="row"><div class="k"><kbd>Ctrl</kbd>+<kbd>r</kbd> <kbd>"</kbd></div><div class="d">вставить скопированное; <kbd>Ctrl</kbd>+<kbd>r</kbd> <kbd>a</kbd> — из регистра a</div></div>
+          <div class="row"><div class="k"><kbd>Ctrl</kbd>+<kbd>o</kbd></div><div class="d">одна команда Normal и обратно к набору: <kbd>Ctrl</kbd>+<kbd>o</kbd> <kbd>$</kbd></div></div>
+          <div class="row"><div class="k"><kbd>Ctrl</kbd>+<kbd>t</kbd> <kbd>Ctrl</kbd>+<kbd>d</kbd></div><div class="d">отступ строки вправо · влево</div></div>
+          <div class="row"><div class="k">скобки, кавычки</div><div class="d">закрываются сами; <kbd>⌫</kbd> между парой удаляет обе</div></div>
+        </div>
+      </div>
+
+    </div>
+  </section>
+
+  <!-- ═══════════════ ВЫДЕЛЕНИЕ ═══════════════ -->
+  <section class="sec" id="visual" data-c="tui">
+    <div class="sec-head">
+      <h2>Выделение</h2>
+      <p>Выделить, потом применить оператор. Удобно, когда движение сложно описать словами.</p>
+    </div>
+    <div class="grid">
+
+      <div class="p">
+        <h3>Три вида</h3>
+        <div class="rows">
+          <div class="row"><div class="k"><kbd>v</kbd></div><div class="d">по символам</div></div>
+          <div class="row"><div class="k"><kbd>V</kbd></div><div class="d">строками</div></div>
+          <div class="row"><div class="k"><kbd>Ctrl</kbd>+<kbd>v</kbd></div><div class="d">прямоугольный блок</div></div>
+          <div class="row"><div class="k"><kbd>o</kbd></div><div class="d">перейти на другой конец выделения</div></div>
+          <div class="row"><div class="k"><code>gv</code></div><div class="d">выделить заново то, что выделяли в прошлый раз</div></div>
+          <div class="row"><div class="k"><kbd>Esc</kbd></div><div class="d">снять выделение</div></div>
+        </div>
+      </div>
+
+      <div class="p">
+        <h3>Что сделать с выделенным</h3>
+        <div class="rows">
+          <div class="row"><div class="k"><kbd>d</kbd> <kbd>y</kbd> <kbd>c</kbd></div><div class="d">удалить · скопировать · заменить</div></div>
+          <div class="row"><div class="k"><kbd>&gt;</kbd> <kbd>&lt;</kbd> <kbd>=</kbd></div><div class="d">сдвинуть отступ · выровнять</div></div>
+          <div class="row"><div class="k"><kbd>u</kbd> <kbd>U</kbd></div><div class="d">в нижний · в верхний регистр</div></div>
+          <div class="row"><div class="k"><kbd>J</kbd> <kbd>K</kbd></div><div class="d">переместить строки вниз · вверх</div></div>
+          <div class="row"><div class="k"><code>gc</code></div><div class="d">закомментировать</div></div>
+          <div class="row"><div class="k"><kbd>*</kbd></div><div class="d">искать выделенный текст</div></div>
+          <div class="row"><div class="k"><kbd>:</kbd></div><div class="d">команда только для выделенных строк: <code>:'&lt;,'&gt;s/a/b/g</code></div></div>
+        </div>
+      </div>
+
+      <div class="p">
+        <h3>Блок: правка сразу на многих строках</h3>
+        <div class="rows">
+          <div class="row"><div class="k"><kbd>Ctrl</kbd>+<kbd>v</kbd> <kbd>j</kbd>… <kbd>I</kbd></div><div class="d">текст, <kbd>Esc</kbd> — вставить в начало каждой строки блока</div></div>
+          <div class="row"><div class="k"><kbd>Ctrl</kbd>+<kbd>v</kbd> <kbd>j</kbd>… <kbd>$</kbd> <kbd>A</kbd></div><div class="d">текст, <kbd>Esc</kbd> — дописать в конец каждой строки</div></div>
+          <div class="row"><div class="k"><kbd>Ctrl</kbd>+<kbd>v</kbd> … <kbd>c</kbd></div><div class="d">заменить колонку на всех строках</div></div>
+          <div class="row"><div class="k"><kbd>Ctrl</kbd>+<kbd>v</kbd> … <kbd>d</kbd></div><div class="d">удалить колонку</div></div>
+        </div>
+        <p class="note">Пока печатаете, текст виден только в первой строке. На остальных он появится после <kbd>Esc</kbd>.</p>
+      </div>
+
+    </div>
+  </section>
+
+  <!-- ═══════════════ ПОИСК ═══════════════ -->
+  <section class="sec" id="search" data-c="tui">
+    <div class="sec-head">
+      <h2>Поиск и замена</h2>
+      <p>Регистр учитывается, только если в запросе есть заглавная буква.</p>
+    </div>
+    <div class="grid">
+
+      <div class="p">
+        <h3>В файле</h3>
+        <div class="rows">
+          <div class="row"><div class="k"><code>/текст</code> <kbd>Enter</kbd></div><div class="d">искать вперёд; <code>?текст</code> — назад</div></div>
+          <div class="row"><div class="k"><kbd>n</kbd> <kbd>N</kbd></div><div class="d">следующее · предыдущее совпадение</div></div>
+          <div class="row"><div class="k"><kbd>*</kbd> <kbd>#</kbd></div><div class="d">искать слово под курсором</div></div>
+          <div class="row"><div class="k"><kbd>Esc</kbd></div><div class="d">убрать подсветку найденного</div></div>
+          <div class="row"><div class="k"><kbd>Space</kbd> <kbd>/</kbd></div><div class="d">нечёткий поиск по строкам файла, со списком</div></div>
+        </div>
+      </div>
+
+      <div class="p">
+        <h3>Замена</h3>
+        <div class="rows">
+          <div class="row"><div class="k"><code>:s/было/стало/</code></div><div class="d">в текущей строке, первое вхождение</div></div>
+          <div class="row"><div class="k"><code>:%s/было/стало/g</code></div><div class="d">во всём файле</div></div>
+          <div class="row"><div class="k"><code>:%s/было/стало/gc</code></div><div class="d">во всём файле, с вопросом по каждому: <kbd>y</kbd> да, <kbd>n</kbd> нет, <kbd>a</kbd> все, <kbd>q</kbd> хватит</div></div>
+          <div class="row"><div class="k"><code>:%s/\&lt;id\&gt;/userId/g</code></div><div class="d">только целое слово id</div></div>
+          <div class="row"><div class="k"><code>:%s//стало/g</code></div><div class="d">пустой шаблон — то, что искали последним через / или *</div></div>
+          <div class="row"><div class="k"><kbd>&amp;</kbd></div><div class="d">повторить последнюю замену на текущей строке</div></div>
+        </div>
+        <p class="note">Пока набираете <code>:%s</code>, внизу видно, какие строки изменятся.</p>
+      </div>
+
+      <div class="p">
+        <h3>По проекту</h3>
+        <div class="rows">
+          <div class="row"><div class="k"><kbd>Space</kbd> <kbd>s</kbd></div><div class="d">текст во всех файлах; запрос — регулярное выражение ripgrep</div></div>
+          <div class="row"><div class="k"><kbd>Space</kbd> <kbd>f</kbd></div><div class="d">файл по части имени</div></div>
+          <div class="row"><div class="k"><kbd>Space</kbd> <kbd>r</kbd></div><div class="d">вернуться к прошлому поиску с теми же результатами</div></div>
+          <div class="row"><div class="k"><kbd>Ctrl</kbd>+<kbd>q</kbd></div><div class="d">в списке — все результаты в quickfix-список</div></div>
+          <div class="row"><div class="k"><kbd>]</kbd><kbd>q</kbd> <kbd>[</kbd><kbd>q</kbd></div><div class="d">следующее · предыдущее место из списка</div></div>
+          <div class="row"><div class="k"><code>:cdo s/а/б/g | update</code></div><div class="d">заменить во всех найденных местах и сохранить файлы</div></div>
+          <div class="row"><div class="k"><code>:copen</code> <span class="sep">·</span> <code>:cclose</code></div><div class="d">открыть · закрыть quickfix-список</div></div>
+        </div>
+        <p class="note">Замена по всему проекту: <kbd>Space</kbd> <kbd>s</kbd> → запрос → <kbd>Ctrl</kbd>+<kbd>q</kbd> → <code>:cdo s/было/стало/g | update</code>.</p>
+      </div>
+
+      <div class="p">
+        <h3>Внутри списка поиска</h3>
+        <div class="rows">
+          <div class="row"><div class="k">текст</div><div class="d">фильтр; для файлов достаточно части имени</div></div>
+          <div class="row"><div class="k"><kbd>Ctrl</kbd>+<kbd>n</kbd> <kbd>Ctrl</kbd>+<kbd>p</kbd></div><div class="d">вниз · вверх по списку, стрелки тоже работают</div></div>
+          <div class="row"><div class="k"><kbd>Enter</kbd></div><div class="d">открыть</div></div>
+          <div class="row"><div class="k"><kbd>Ctrl</kbd>+<kbd>v</kbd></div><div class="d">открыть справа, в вертикальном сплите</div></div>
+          <div class="row"><div class="k"><kbd>Ctrl</kbd>+<kbd>x</kbd></div><div class="d">открыть снизу, в горизонтальном сплите</div></div>
+          <div class="row"><div class="k"><kbd>Ctrl</kbd>+<kbd>t</kbd></div><div class="d">открыть в новой вкладке</div></div>
+          <div class="row"><div class="k"><kbd>Ctrl</kbd>+<kbd>u</kbd> <kbd>Ctrl</kbd>+<kbd>d</kbd></div><div class="d">листать превью</div></div>
+          <div class="row"><div class="k"><kbd>Tab</kbd></div><div class="d">отметить несколько; <kbd>Alt</kbd>+<kbd>q</kbd> — отмеченные в quickfix</div></div>
+          <div class="row"><div class="k"><kbd>Ctrl</kbd>+<kbd>/</kbd></div><div class="d">все клавиши этого списка</div></div>
+          <div class="row"><div class="k"><kbd>Ctrl</kbd>+<kbd>c</kbd></div><div class="d">закрыть; или <kbd>Esc</kbd> дважды</div></div>
+        </div>
+      </div>
+
+    </div>
+  </section>
+
+  <!-- ═══════════════ ФАЙЛЫ И ОКНА ═══════════════ -->
+  <section class="sec" id="files" data-c="ops">
+    <div class="sec-head">
+      <h2>Файлы, буферы, окна</h2>
+      <p>Буфер — открытый файл. Окно — место на экране, где буфер показан. Закрыть окно не значит закрыть файл.</p>
+    </div>
+    <div class="grid">
+
+      <div class="p">
+        <h3>Файлы и буферы</h3>
+        <div class="rows">
+          <div class="row"><div class="k"><kbd>Space</kbd> <kbd>f</kbd></div><div class="d">найти и открыть файл</div></div>
+          <div class="row"><div class="k"><kbd>Space</kbd> <kbd>b</kbd></div><div class="d">открытые файлы списком</div></div>
+          <div class="row"><div class="k"><kbd>]</kbd><kbd>b</kbd> <kbd>[</kbd><kbd>b</kbd></div><div class="d">следующий · предыдущий буфер</div></div>
+          <div class="row"><div class="k"><kbd>Ctrl</kbd>+<kbd>^</kbd></div><div class="d">к предыдущему файлу и обратно</div></div>
+          <div class="row"><div class="k"><code>:e путь</code></div><div class="d">открыть или создать файл; <kbd>Tab</kbd> дополняет путь</div></div>
+          <div class="row"><div class="k"><code>:bd</code></div><div class="d">закрыть буфер</div></div>
+          <div class="row"><div class="k"><code>:saveas путь</code></div><div class="d">сохранить под другим именем и дальше править копию</div></div>
+        </div>
+      </div>
+
+      <div class="p">
+        <h3>oil — каталог как обычный текст</h3>
+        <div class="rows">
+          <div class="row"><div class="k"><kbd>-</kbd></div><div class="d">открыть каталог текущего файла; ещё раз — на уровень выше</div></div>
+          <div class="row"><div class="k"><kbd>Enter</kbd></div><div class="d">открыть файл или войти в каталог</div></div>
+          <div class="row"><div class="k">правка текста</div><div class="d">переименовать — исправить строку; удалить — <code>dd</code>; создать — <kbd>o</kbd> и имя, каталог — с <code>/</code> на конце</div></div>
+          <div class="row"><div class="k"><code>:w</code></div><div class="d">применить правки к диску, перед этим покажет список</div></div>
+          <div class="row"><div class="k"><kbd>Ctrl</kbd>+<kbd>p</kbd> <span class="sep">·</span> <kbd>Ctrl</kbd>+<kbd>s</kbd></div><div class="d">превью файла · открыть справа</div></div>
+          <div class="row"><div class="k"><code>g.</code> <span class="sep">·</span> <code>gs</code></div><div class="d">спрятать скрытые файлы · сменить сортировку</div></div>
+          <div class="row"><div class="k"><kbd>_</kbd> <span class="sep">·</span> <code>g?</code></div><div class="d">каталог, где запущен nvim · все клавиши</div></div>
+        </div>
+        <p class="note">Удаление через oil — настоящее, не в Корзину. <kbd>Ctrl</kbd>+<kbd>h</kbd> и <kbd>Ctrl</kbd>+<kbd>l</kbd> в oil заняты: к соседнему окну — через <kbd>Ctrl</kbd>+<kbd>w</kbd> <kbd>h</kbd>.</p>
+      </div>
+
+      <div class="p">
+        <h3>Окна</h3>
+        <div class="rows">
+          <div class="row"><div class="k"><kbd>Ctrl</kbd>+<kbd>w</kbd> <kbd>v</kbd> <span class="sep">·</span> <kbd>s</kbd></div><div class="d">разделить окно вертикально · горизонтально</div></div>
+          <div class="row"><div class="k"><code>:vsp файл</code></div><div class="d">открыть файл справа</div></div>
+          <div class="row"><div class="k"><kbd>Ctrl</kbd>+<kbd>h</kbd> <kbd>j</kbd> <kbd>k</kbd> <kbd>l</kbd></div><div class="d">в соседнее окно</div></div>
+          <div class="row"><div class="k"><kbd>Ctrl</kbd>+<kbd>w</kbd> <kbd>q</kbd> <span class="sep">·</span> <kbd>o</kbd></div><div class="d">закрыть окно · оставить только текущее</div></div>
+          <div class="row"><div class="k"><kbd>Ctrl</kbd>+<kbd>w</kbd> <kbd>=</kbd></div><div class="d">сделать окна одного размера</div></div>
+          <div class="row"><div class="k"><kbd>Ctrl</kbd>+<kbd>w</kbd> <kbd>H</kbd> <kbd>J</kbd> <kbd>K</kbd> <kbd>L</kbd></div><div class="d">переставить окно к левому, нижнему, верхнему, правому краю</div></div>
+          <div class="row"><div class="k"><kbd>Ctrl</kbd>+<kbd>w</kbd> <kbd>&gt;</kbd> <kbd>&lt;</kbd> <kbd>+</kbd> <kbd>-</kbd></div><div class="d">шире · уже · выше · ниже; с числом впереди — сразу на столько</div></div>
+        </div>
+        <p class="note">Новые окна открываются справа и снизу.</p>
+      </div>
+
+      <div class="p">
+        <h3>Вкладки</h3>
+        <div class="rows">
+          <div class="row"><div class="k"><code>:tabnew</code></div><div class="d">новая вкладка</div></div>
+          <div class="row"><div class="k"><code>gt</code> <code>gT</code></div><div class="d">следующая · предыдущая вкладка</div></div>
+          <div class="row"><div class="k"><code>:tabclose</code></div><div class="d">закрыть вкладку</div></div>
+        </div>
+        <p class="note">Вкладка в nvim — набор окон, а не один файл. Переключаться между файлами удобнее через <kbd>Space</kbd> <kbd>b</kbd>.</p>
+      </div>
+
+    </div>
+  </section>
+
+  <!-- ═══════════════ КОД ═══════════════ -->
+  <section class="sec" id="code" data-c="vim">
+    <div class="sec-head">
+      <h2>Код и LSP</h2>
+      <p>Языковые серверы ставятся сами при первом запуске: gopls, yamlls, jsonls, bashls, dockerls, marksman, taplo, lua_ls. Java намеренно не настроена — для неё IDEA.</p>
+    </div>
+    <div class="grid">
+
+      <div class="p">
+        <h3>Переходы</h3>
+        <div class="rows">
+          <div class="row"><div class="k"><code>gd</code></div><div class="d">к определению</div></div>
+          <div class="row"><div class="k"><code>gr</code> <span class="sep">·</span> <code>grr</code></div><div class="d">все места, где используется</div></div>
+          <div class="row"><div class="k"><code>gri</code> <span class="sep">·</span> <code>grt</code></div><div class="d">к реализации · к определению типа</div></div>
+          <div class="row"><div class="k"><kbd>K</kbd></div><div class="d">документация под курсором; ещё раз <kbd>K</kbd> — войти в окно и листать</div></div>
+          <div class="row"><div class="k"><code>gO</code></div><div class="d">функции и типы файла списком</div></div>
+          <div class="row"><div class="k"><kbd>Ctrl</kbd>+<kbd>o</kbd></div><div class="d">вернуться туда, откуда перешли</div></div>
+        </div>
+      </div>
+
+      <div class="p">
+        <h3>Ошибки и правки</h3>
+        <div class="rows">
+          <div class="row"><div class="k"><kbd>]</kbd><kbd>d</kbd> <kbd>[</kbd><kbd>d</kbd></div><div class="d">следующая · предыдущая ошибка в файле</div></div>
+          <div class="row"><div class="k"><kbd>Space</kbd> <kbd>e</kbd></div><div class="d">показать ошибку под курсором целиком</div></div>
+          <div class="row"><div class="k"><kbd>Space</kbd> <kbd>d</kbd></div><div class="d">все ошибки и предупреждения проекта</div></div>
+          <div class="row"><div class="k"><kbd>Space</kbd> <kbd>c</kbd> <kbd>a</kbd> <span class="sep">·</span> <code>gra</code></div><div class="d">быстрые исправления: импорт, заглушка метода</div></div>
+          <div class="row"><div class="k"><kbd>Space</kbd> <kbd>r</kbd> <kbd>n</kbd> <span class="sep">·</span> <code>grn</code></div><div class="d">переименовать во всём проекте</div></div>
+          <div class="row"><div class="k"><kbd>Space</kbd> <kbd>F</kbd></div><div class="d">отформатировать файл</div></div>
+        </div>
+        <p class="note">Go и Lua форматируются сами при сохранении. YAML — только вручную: prettier переставляет кавычки и ломает дифф в чужих манифестах.</p>
+      </div>
+
+      <div class="p">
+        <h3>Автодополнение</h3>
+        <div class="rows">
+          <div class="row"><div class="k">само</div><div class="d">меню появляется при наборе</div></div>
+          <div class="row"><div class="k"><kbd>Ctrl</kbd>+<kbd>Space</kbd></div><div class="d">вызвать меню вручную; ещё раз — документация варианта</div></div>
+          <div class="row"><div class="k"><kbd>Ctrl</kbd>+<kbd>n</kbd> <kbd>Ctrl</kbd>+<kbd>p</kbd></div><div class="d">следующий · предыдущий вариант, стрелки тоже работают</div></div>
+          <div class="row"><div class="k"><kbd>Ctrl</kbd>+<kbd>y</kbd></div><div class="d">принять вариант</div></div>
+          <div class="row"><div class="k"><kbd>Ctrl</kbd>+<kbd>e</kbd></div><div class="d">закрыть меню</div></div>
+          <div class="row"><div class="k"><kbd>Ctrl</kbd>+<kbd>b</kbd> <kbd>Ctrl</kbd>+<kbd>f</kbd></div><div class="d">листать документацию варианта</div></div>
+          <div class="row"><div class="k"><kbd>Tab</kbd> <kbd>⇧</kbd>+<kbd>Tab</kbd></div><div class="d">по полям сниппета вперёд · назад</div></div>
+          <div class="row"><div class="k"><kbd>Ctrl</kbd>+<kbd>k</kbd></div><div class="d">подсказка по аргументам функции</div></div>
+        </div>
+        <p class="note"><kbd>Enter</kbd> вариант не принимает, а переносит строку. Принять — <kbd>Ctrl</kbd>+<kbd>y</kbd>.</p>
+      </div>
+
+      <div class="p">
+        <h3>YAML и Kubernetes</h3>
+        <div class="rows">
+          <div class="row"><div class="k">схемы</div><div class="d">поля манифестов k8s, docker-compose, GitHub Actions дополняются и проверяются</div></div>
+          <div class="row"><div class="k"><kbd>Ctrl</kbd>+<kbd>Space</kbd></div><div class="d">на пустой строке — какие поля допустимы здесь</div></div>
+          <div class="row"><div class="k"><kbd>K</kbd></div><div class="d">на поле — его описание из схемы</div></div>
+          <div class="row"><div class="k"><kbd>]</kbd><kbd>d</kbd></div><div class="d">к следующему полю, которого нет в схеме или с неверным типом</div></div>
+          <div class="row"><div class="k"><kbd>Space</kbd> <kbd>F</kbd></div><div class="d">отформатировать YAML вручную</div></div>
+        </div>
+      </div>
+
+      <div class="p">
+        <h3>Комментарии и TODO</h3>
+        <div class="rows">
+          <div class="row"><div class="k"><code>gcc</code></div><div class="d">закомментировать строку или раскомментировать</div></div>
+          <div class="row"><div class="k"><code>gc</code> + движение</div><div class="d">диапазон: <code>gcip</code> — абзац, <code>gc3j</code> — четыре строки</div></div>
+          <div class="row"><div class="k"><code>gc</code> в выделении</div><div class="d">закомментировать выделенное</div></div>
+          <div class="row"><div class="k"><code>TODO:</code> <code>FIX:</code> <code>NOTE:</code></div><div class="d">подсвечиваются в комментариях</div></div>
+          <div class="row"><div class="k"><code>:TodoTelescope</code></div><div class="d">все TODO проекта списком</div></div>
+        </div>
+      </div>
+
+      <div class="p">
+        <h3>Обслуживание</h3>
+        <div class="rows">
+          <div class="row"><div class="k"><code>:Lazy</code></div><div class="d">плагины: <kbd>U</kbd> — обновить все, <kbd>?</kbd> — клавиши</div></div>
+          <div class="row"><div class="k"><code>:Mason</code></div><div class="d">языковые серверы и форматтеры: <kbd>i</kbd> — поставить, <kbd>U</kbd> — обновить все</div></div>
+          <div class="row"><div class="k"><code>:TSUpdate</code></div><div class="d">обновить парсеры подсветки</div></div>
+          <div class="row"><div class="k"><code>:checkhealth</code></div><div class="d">что сломано и как починить; <code>:checkhealth vim.lsp</code> — только LSP</div></div>
+        </div>
+      </div>
+
+    </div>
+  </section>
+
+  <!-- ═══════════════ GIT ═══════════════ -->
+  <section class="sec" id="git" data-c="git">
+    <div class="sec-head">
+      <h2>Git</h2>
+      <p>Всё про git — на <kbd>Space</kbd> <kbd>g</kbd>, куски изменений — на <kbd>Space</kbd> <kbd>h</kbd>. Нажмите и подождите: which-key покажет список.</p>
+    </div>
+    <div class="grid">
+
+      <div class="p wide">
+        <h3>Space g</h3>
+        <div class="rows">
+          <div class="row"><div class="k"><kbd>Space</kbd> <kbd>g</kbd> <kbd>g</kbd></div><div class="d">lazygit во всплывающем окне; <kbd>q</kbd> — вернуться в nvim</div></div>
+          <div class="row"><div class="k"><kbd>Space</kbd> <kbd>g</kbd> <kbd>s</kbd></div><div class="d">статус: что изменено, что в индексе; коммит прямо отсюда</div></div>
+          <div class="row"><div class="k"><kbd>Space</kbd> <kbd>g</kbd> <kbd>b</kbd></div><div class="d">blame всего файла: <kbd>Enter</kbd> — коммит строки, <kbd>o</kbd> — в сплите</div></div>
+          <div class="row"><div class="k"><kbd>Space</kbd> <kbd>g</kbd> <kbd>l</kbd> <span class="sep">·</span> <kbd>L</kbd></div><div class="d">лог репозитория · коммиты текущего файла, с превью</div></div>
+          <div class="row"><div class="k"><kbd>Space</kbd> <kbd>g</kbd> <kbd>B</kbd></div><div class="d">ветки; <kbd>Enter</kbd> — переключиться</div></div>
+          <div class="row"><div class="k"><kbd>Space</kbd> <kbd>g</kbd> <kbd>S</kbd></div><div class="d">изменённые файлы списком</div></div>
+          <div class="row"><div class="k"><kbd>Space</kbd> <kbd>g</kbd> <kbd>d</kbd></div><div class="d">дифф всего рабочего дерева: файлы слева, изменения справа</div></div>
+          <div class="row"><div class="k"><kbd>Space</kbd> <kbd>g</kbd> <kbd>h</kbd> <span class="sep">·</span> <kbd>H</kbd></div><div class="d">история текущего файла · всего репозитория</div></div>
+          <div class="row"><div class="k"><kbd>Space</kbd> <kbd>g</kbd> <kbd>q</kbd></div><div class="d">закрыть дифф и историю</div></div>
+        </div>
+      </div>
+
+      <div class="p">
+        <h3>Куски изменений</h3>
+        <div class="rows">
+          <div class="row"><div class="k"><kbd>]</kbd><kbd>c</kbd> <kbd>[</kbd><kbd>c</kbd></div><div class="d">к следующему · предыдущему изменению в файле</div></div>
+          <div class="row"><div class="k"><kbd>Space</kbd> <kbd>h</kbd> <kbd>p</kbd></div><div class="d">показать, что именно изменилось</div></div>
+          <div class="row"><div class="k"><kbd>Space</kbd> <kbd>h</kbd> <kbd>s</kbd></div><div class="d">добавить кусок в индекс</div></div>
+          <div class="row"><div class="k"><kbd>Space</kbd> <kbd>h</kbd> <kbd>r</kbd></div><div class="d">откатить кусок</div></div>
+          <div class="row"><div class="k"><kbd>Space</kbd> <kbd>h</kbd> <kbd>d</kbd></div><div class="d">дифф файла с индексом</div></div>
+          <div class="row"><div class="k"><kbd>Space</kbd> <kbd>h</kbd> <kbd>b</kbd></div><div class="d">кто и когда менял эту строку</div></div>
+          <div class="row"><div class="k"><kbd>Space</kbd> <kbd>t</kbd> <kbd>b</kbd></div><div class="d">автор и дата рядом с текущей строкой</div></div>
+        </div>
+      </div>
+
+      <div class="p">
+        <h3>В окне статуса — Space g s</h3>
+        <div class="rows">
+          <div class="row"><div class="k"><kbd>s</kbd> <kbd>u</kbd> <kbd>-</kbd></div><div class="d">в индекс · из индекса · переключить</div></div>
+          <div class="row"><div class="k"><kbd>=</kbd></div><div class="d">развернуть дифф файла прямо в списке</div></div>
+          <div class="row"><div class="k"><code>dv</code></div><div class="d">дифф файла в сплите</div></div>
+          <div class="row"><div class="k"><kbd>X</kbd></div><div class="d">выбросить изменения файла</div></div>
+          <div class="row"><div class="k"><code>cc</code> <span class="sep">·</span> <code>ca</code></div><div class="d">коммит · дописать в последний коммит</div></div>
+          <div class="row"><div class="k"><code>g?</code></div><div class="d">все клавиши</div></div>
+        </div>
+      </div>
+
+      <div class="p">
+        <h3>В окне диффа — Space g d</h3>
+        <div class="rows">
+          <div class="row"><div class="k"><kbd>Tab</kbd> <kbd>⇧</kbd>+<kbd>Tab</kbd></div><div class="d">следующий · предыдущий файл</div></div>
+          <div class="row"><div class="k"><kbd>-</kbd> <span class="sep">·</span> <kbd>s</kbd></div><div class="d">в списке файлов — в индекс или обратно</div></div>
+          <div class="row"><div class="k"><kbd>S</kbd> <kbd>U</kbd></div><div class="d">всё в индекс · всё из индекса</div></div>
+          <div class="row"><div class="k"><kbd>X</kbd></div><div class="d">вернуть файл к версии слева</div></div>
+          <div class="row"><div class="k"><kbd>]</kbd><kbd>x</kbd> <kbd>[</kbd><kbd>x</kbd></div><div class="d">при конфликте — к следующему · предыдущему</div></div>
+          <div class="row"><div class="k"><kbd>Space</kbd> <kbd>c</kbd> <kbd>o</kbd> <span class="sep">·</span> <kbd>t</kbd> <span class="sep">·</span> <kbd>a</kbd></div><div class="d">при конфликте взять нашу версию · их · обе</div></div>
+          <div class="row"><div class="k"><code>g?</code></div><div class="d">все клавиши</div></div>
+        </div>
+      </div>
+
+    </div>
+  </section>
+
+  <!-- ═══════════════ MARKDOWN ═══════════════ -->
+  <section class="sec" id="md" data-c="sec">
+    <div class="sec-head">
+      <h2>Markdown</h2>
+      <p>Для .md свой профиль: перенос строк по словам, заголовки, таблицы и чекбоксы рисуются прямо в буфере. На строке с курсором и в режиме вставки видна обычная разметка.</p>
+    </div>
+    <div class="grid">
+
+      <div class="p">
+        <h3>Читать и править</h3>
+        <div class="rows">
+          <div class="row"><div class="k">перенос</div><div class="d">по словам и только на экране: файл на диске не переформатируется</div></div>
+          <div class="row"><div class="k"><kbd>j</kbd> <kbd>k</kbd></div><div class="d">по экранным строкам длинного абзаца</div></div>
+          <div class="row"><div class="k"><kbd>Space</kbd> <kbd>o</kbd></div><div class="d">оглавление: заголовки списком, <kbd>Enter</kbd> — перейти</div></div>
+          <div class="row"><div class="k"><kbd>Space</kbd> <kbd>x</kbd></div><div class="d">отметить пункт: <code>- [ ]</code> ↔ <code>- [x]</code></div></div>
+          <div class="row"><div class="k"><code>gx</code></div><div class="d">открыть ссылку под курсором в браузере</div></div>
+          <div class="row"><div class="k"><kbd>Space</kbd> <kbd>F</kbd></div><div class="d">отформатировать через prettier</div></div>
+          <div class="row"><div class="k">сырой текст</div><div class="d"><code>:RenderMarkdown toggle</code> — выключить и включить рисование</div></div>
+        </div>
+      </div>
+
+      <div class="p">
+        <h3>Таблицы</h3>
+        <div class="rows">
+          <div class="row"><div class="k"><kbd>Space</kbd> <kbd>t</kbd> <kbd>m</kbd></div><div class="d">режим таблиц вкл/выкл</div></div>
+          <div class="row"><div class="k"><kbd>|</kbd></div><div class="d">граница ячейки: столбцы выравниваются при наборе</div></div>
+          <div class="row"><div class="k"><kbd>|</kbd><kbd>|</kbd></div><div class="d">в начале пустой строки — линия под заголовком</div></div>
+          <div class="row"><div class="k"><kbd>Space</kbd> <kbd>|</kbd> <kbd>r</kbd></div><div class="d">выровнять таблицу заново</div></div>
+          <div class="row"><div class="k"><kbd>Space</kbd> <kbd>|</kbd> <code>dd</code> <span class="sep">·</span> <code>dc</code></div><div class="d">удалить строку · столбец</div></div>
+          <div class="row"><div class="k"><kbd>Space</kbd> <kbd>|</kbd> <code>ic</code></div><div class="d">вставить столбец после текущего</div></div>
+          <div class="row"><div class="k"><kbd>[</kbd><kbd>|</kbd> <kbd>]</kbd><kbd>|</kbd></div><div class="d">к ячейке слева · справа</div></div>
+          <div class="row"><div class="k"><kbd>Space</kbd> <kbd>|</kbd> <kbd>t</kbd></div><div class="d">выделенные строки через запятую — в таблицу</div></div>
+        </div>
+        <p class="note">Правка строк и столбцов и переходы по ячейкам работают, пока включён режим таблиц. <kbd>Space</kbd> <kbd>|</kbd> <kbd>t</kbd> — всегда.</p>
+      </div>
+
+      <div class="p">
+        <h3>Орфография</h3>
+        <div class="rows">
+          <div class="row"><div class="k">включение</div><div class="d">сама, если стоит русский словарь</div></div>
+          <div class="row"><div class="k">словарь</div><div class="d">один раз <code>:set spell spelllang=ru</code> — nvim предложит скачать</div></div>
+          <div class="row"><div class="k"><kbd>]</kbd><kbd>s</kbd> <kbd>[</kbd><kbd>s</kbd></div><div class="d">к следующей · предыдущей ошибке</div></div>
+          <div class="row"><div class="k"><code>z=</code></div><div class="d">варианты замены для слова под курсором</div></div>
+          <div class="row"><div class="k"><code>zg</code> <span class="sep">·</span> <code>zw</code></div><div class="d">добавить слово в свой словарь · пометить как ошибку</div></div>
+          <div class="row"><div class="k"><code>:set nospell</code></div><div class="d">выключить в этом окне</div></div>
+        </div>
+      </div>
+
+    </div>
+  </section>
+
+  <!-- ═══════════════ ЗАМЕТКИ ═══════════════ -->
+  <section class="sec" id="notes" data-c="sec">
+    <div class="sec-head">
+      <h2>Заметки</h2>
+      <p>Рабочий vault <code>~/docs/work</code> — те же файлы, что открывает Obsidian. Плагин obsidian.nvim включается для заметок из этого каталога.</p>
+    </div>
+    <div class="grid">
+
+      <div class="p">
+        <h3>Space n — работа с vault</h3>
+        <div class="rows">
+          <div class="row"><div class="k"><kbd>Space</kbd> <kbd>n</kbd> <kbd>n</kbd></div><div class="d">новая заметка в <code>inbox/</code>; имя файла — заголовок, без него — дата и время</div></div>
+          <div class="row"><div class="k"><kbd>Space</kbd> <kbd>n</kbd> <kbd>f</kbd></div><div class="d">найти заметку по имени, включая шаблоны и регламенты</div></div>
+          <div class="row"><div class="k"><kbd>Space</kbd> <kbd>n</kbd> <kbd>s</kbd></div><div class="d">поиск по тексту всех заметок</div></div>
+          <div class="row"><div class="k"><kbd>Space</kbd> <kbd>n</kbd> <kbd>b</kbd></div><div class="d">обратные ссылки: какие заметки ссылаются на эту</div></div>
+          <div class="row"><div class="k"><kbd>Space</kbd> <kbd>n</kbd> <kbd>t</kbd></div><div class="d">вставить шаблон из <code>process/playbook/templates</code></div></div>
+          <div class="row"><div class="k"><kbd>Space</kbd> <kbd>n</kbd> <kbd>o</kbd></div><div class="d">открыть эту заметку в приложении Obsidian</div></div>
+        </div>
+      </div>
+
+      <div class="p">
+        <h3>Внутри заметки</h3>
+        <div class="rows">
+          <div class="row"><div class="k"><kbd>Enter</kbd> на <code>[[ссылке]]</code></div><div class="d">перейти в заметку; назад — <kbd>Ctrl</kbd>+<kbd>o</kbd></div></div>
+          <div class="row"><div class="k"><kbd>Enter</kbd> на пункте</div><div class="d">следующее состояние: <code>[ ]</code> → <code>[~]</code> → <code>[!]</code> → <code>[&gt;]</code> → <code>[x]</code></div></div>
+          <div class="row"><div class="k"><kbd>Enter</kbd> на строке</div><div class="d">сделать обычную строку пунктом списка задач</div></div>
+          <div class="row"><div class="k"><kbd>]</kbd><kbd>o</kbd> <kbd>[</kbd><kbd>o</kbd></div><div class="d">к следующей · предыдущей ссылке</div></div>
+          <div class="row"><div class="k"><code>[[</code> и пара букв</div><div class="d">подсказка имён заметок; можно создать новую прямо из списка</div></div>
+          <div class="row"><div class="k"><code>gd</code> <span class="sep">·</span> <code>gr</code></div><div class="d">к заметке по ссылке · кто ссылается на то, что под курсором</div></div>
+          <div class="row"><div class="k">выделить, <code>gra</code></div><div class="d">сделать выделенное ссылкой или вынести в новую заметку</div></div>
+        </div>
+      </div>
+
+      <div class="p">
+        <h3>Команды :Obsidian</h3>
+        <div class="rows">
+          <div class="row"><div class="k"><code>today</code> <code>yesterday</code></div><div class="d">заметка дня: сегодня · вчера</div></div>
+          <div class="row"><div class="k"><code>quick_switch</code></div><div class="d">быстро перейти в другую заметку</div></div>
+          <div class="row"><div class="k"><code>tags</code></div><div class="d">заметки с тегом</div></div>
+          <div class="row"><div class="k"><code>links</code> <span class="sep">·</span> <code>toc</code></div><div class="d">ссылки этой заметки · её оглавление</div></div>
+          <div class="row"><div class="k"><code>rename</code></div><div class="d">переименовать заметку и все ссылки на неё</div></div>
+          <div class="row"><div class="k"><code>paste_img</code></div><div class="d">вставить картинку из буфера в <code>attachments/</code></div></div>
+        </div>
+        <p class="note">Набирается как <code>:Obsidian today</code>; <code>:Obsidian</code> и <kbd>Tab</kbd> покажут все. Frontmatter не пишется: заметки одинаково выглядят здесь и в Obsidian.</p>
+      </div>
+
+    </div>
+  </section>
+
+  <!-- ═══════════════ ЛОГИ ═══════════════ -->
+  <section class="sec" id="logs" data-c="tui">
+    <div class="sec-head">
+      <h2>Логи и большие файлы</h2>
+      <p>Файлы больше 5 МБ открываются без подсветки и без истории отмен, чтобы nvim не подвисал.</p>
+    </div>
+    <div class="grid">
+
+      <div class="p">
+        <h3>Читать</h3>
+        <div class="rows">
+          <div class="row"><div class="k"><kbd>Space</kbd> <kbd>t</kbd> <kbd>w</kbd></div><div class="d">перенос длинных строк вкл/выкл</div></div>
+          <div class="row"><div class="k"><code>:Tail</code></div><div class="d">следить за растущим файлом, как <code>tail -f</code></div></div>
+          <div class="row"><div class="k"><kbd>G</kbd> <span class="sep">·</span> <code>gg</code></div><div class="d">к свежим строкам в конце · к началу</div></div>
+          <div class="row"><div class="k"><code>/ERROR</code> <kbd>n</kbd></div><div class="d">от ошибки к ошибке</div></div>
+          <div class="row"><div class="k"><code>.log</code></div><div class="d">уровни и время подсвечены цветом</div></div>
+        </div>
+      </div>
+
+      <div class="p wide">
+        <h3>Разобрать</h3>
+        <div class="rows">
+          <div class="row"><div class="k"><code>:saveas /tmp/разбор.log</code></div><div class="d">сначала копия: дальше команды меняют текст, оригинал останется цел</div></div>
+          <div class="row"><div class="k"><code>:vimgrep /ERROR/ %</code></div><div class="d">все строки с ERROR в quickfix-список; <code>:copen</code> — открыть, <kbd>Enter</kbd> — к строке</div></div>
+          <div class="row"><div class="k"><code>:v/ERROR/d</code></div><div class="d">оставить только строки с ERROR; <code>:g/DEBUG/d</code> — выбросить строки с DEBUG</div></div>
+          <div class="row"><div class="k"><code>:%!jq .</code></div><div class="d">отформатировать JSON во всём буфере</div></div>
+          <div class="row"><div class="k"><code>:set ft=json</code></div><div class="d">включить подсветку нужного языка вручную</div></div>
+          <div class="row"><div class="k"><code>:sort u</code></div><div class="d">отсортировать и убрать повторы</div></div>
+        </div>
+      </div>
+
+    </div>
+  </section>
+
+  <!-- ═══════════════ РЕГИСТРЫ ═══════════════ -->
+  <section class="sec" id="regs" data-c="shell">
+    <div class="sec-head">
+      <h2>Регистры, макросы, отмена</h2>
+      <p>Регистр — именованный буфер обмена. Их много: <code>a</code>…<code>z</code> свои, <code>0</code> — последнее скопированное, <code>_</code> — «никуда».</p>
+    </div>
+    <div class="grid">
+
+      <div class="p">
+        <h3>Буфер обмена</h3>
+        <div class="rows">
+          <div class="row"><div class="k"><kbd>y</kbd> <kbd>p</kbd></div><div class="d">сразу системный буфер обмена</div></div>
+          <div class="row"><div class="k"><code>"0p</code></div><div class="d">вставить последнее скопированное, даже если потом что-то удаляли</div></div>
+          <div class="row"><div class="k"><code>"_d</code></div><div class="d">удалить, не затирая буфер обмена: <code>"_dd</code>, <code>"_diw</code></div></div>
+          <div class="row"><div class="k"><code>"ay</code> <span class="sep">·</span> <code>"ap</code></div><div class="d">скопировать в свой регистр a · вставить из него</div></div>
+          <div class="row"><div class="k"><code>:reg</code></div><div class="d">что сейчас лежит в регистрах</div></div>
+        </div>
+      </div>
+
+      <div class="p">
+        <h3>Макросы</h3>
+        <div class="rows">
+          <div class="row"><div class="k"><code>qa</code></div><div class="d">начать запись нажатий в регистр a</div></div>
+          <div class="row"><div class="k"><kbd>q</kbd></div><div class="d">остановить запись</div></div>
+          <div class="row"><div class="k"><code>@a</code> <span class="sep">·</span> <code>10@a</code></div><div class="d">выполнить · выполнить десять раз</div></div>
+          <div class="row"><div class="k"><kbd>Q</kbd></div><div class="d">повторить последний записанный макрос</div></div>
+          <div class="row"><div class="k"><kbd>V</kbd>… <kbd>Q</kbd></div><div class="d">выполнить его на каждой выделенной строке</div></div>
+        </div>
+        <p class="note">Заканчивайте запись переходом на следующую строку (<kbd>j</kbd>, <kbd>0</kbd>): тогда <code>10@a</code> пройдёт по десяти строкам подряд.</p>
+      </div>
+
+      <div class="p">
+        <h3>Отмена</h3>
+        <div class="rows">
+          <div class="row"><div class="k"><kbd>u</kbd> <span class="sep">·</span> <kbd>Ctrl</kbd>+<kbd>r</kbd></div><div class="d">отменить · вернуть</div></div>
+          <div class="row"><div class="k">после перезапуска</div><div class="d">история отмен сохраняется: <kbd>u</kbd> работает и завтра</div></div>
+          <div class="row"><div class="k"><code>:earlier 10m</code></div><div class="d">файл, каким он был 10 минут назад; <code>:later 5m</code> — вперёд</div></div>
+        </div>
+      </div>
+
+    </div>
+  </section>
+
+  <!-- ═══════════════ КОМАНДНАЯ СТРОКА ═══════════════ -->
+  <section class="sec" id="cmd" data-c="ops">
+    <div class="sec-head">
+      <h2>Командная строка</h2>
+      <p>Всё, что начинается с <kbd>:</kbd>. Команды можно сокращать, пока сокращение однозначно: <code>:w</code>, <code>:vsp</code>.</p>
+    </div>
+    <div class="grid">
+
+      <div class="p">
+        <h3>Набор команд</h3>
+        <div class="rows">
+          <div class="row"><div class="k"><kbd>Tab</kbd></div><div class="d">дополнить команду, путь, опцию</div></div>
+          <div class="row"><div class="k"><kbd>↑</kbd> <kbd>↓</kbd></div><div class="d">история команд, которые начинаются так же</div></div>
+          <div class="row"><div class="k"><kbd>Ctrl</kbd>+<kbd>r</kbd> <kbd>Ctrl</kbd>+<kbd>w</kbd></div><div class="d">вставить слово под курсором</div></div>
+          <div class="row"><div class="k"><code>q:</code></div><div class="d">история команд в окне: правится как текст, <kbd>Enter</kbd> — выполнить</div></div>
+          <div class="row"><div class="k"><code>:!команда</code></div><div class="d">выполнить в шелле и посмотреть вывод</div></div>
+          <div class="row"><div class="k"><code>:r !команда</code></div><div class="d">вставить вывод в файл: <code>:r !date</code></div></div>
+          <div class="row"><div class="k"><code>:%!команда</code></div><div class="d">пропустить весь файл через команду: <code>:%!sort</code></div></div>
+          <div class="row"><div class="k"><code>:terminal</code></div><div class="d">терминал внутри nvim; <kbd>Ctrl</kbd>+<kbd>\</kbd> <kbd>Ctrl</kbd>+<kbd>n</kbd> — выйти из набора</div></div>
+        </div>
+      </div>
+
+      <div class="p">
+        <h3>Опции на лету</h3>
+        <div class="rows">
+          <div class="row"><div class="k"><code>:set wrap!</code></div><div class="d">восклицательный знак переключает опцию: вкл ↔ выкл</div></div>
+          <div class="row"><div class="k"><code>:set list!</code></div><div class="d">показать или спрятать табы и пробелы в конце строк</div></div>
+          <div class="row"><div class="k"><code>:set ft=yaml</code></div><div class="d">сменить тип файла, а с ним подсветку и LSP</div></div>
+          <div class="row"><div class="k"><code>:set number!</code></div><div class="d">номера строк</div></div>
+          <div class="row"><div class="k"><code>:set tabstop?</code></div><div class="d">вопросительный знак — узнать текущее значение</div></div>
+          <div class="row"><div class="k"><code>:verbose set tabstop?</code></div><div class="d">и заодно — какой файл его поменял</div></div>
+        </div>
+      </div>
+
+    </div>
+  </section>
+
+  <!-- ═══════════════ ЕСЛИ ЗАСТРЯЛ ═══════════════ -->
+  <section class="sec" id="help" data-c="vim">
+    <div class="sec-head">
+      <h2>Если застрял</h2>
+      <p>Из любой ситуации выводят <kbd>Esc</kbd> и <kbd>u</kbd>. Остальное — справка, которая всегда под рукой.</p>
+    </div>
+    <div class="grid">
+
+      <div class="p">
+        <h3>Выбраться</h3>
+        <div class="rows">
+          <div class="row"><div class="k"><kbd>Esc</kbd> <kbd>Esc</kbd></div><div class="d">выйти из любого режима и меню</div></div>
+          <div class="row"><div class="k"><kbd>u</kbd> <span class="sep">…</span></div><div class="d">отменять, пока не вернётся нужное состояние</div></div>
+          <div class="row"><div class="k"><code>:q!</code></div><div class="d">выйти без сохранения</div></div>
+          <div class="row"><div class="k"><code>:e!</code></div><div class="d">перечитать файл с диска, выбросив правки</div></div>
+          <div class="row"><div class="k"><kbd>Ctrl</kbd>+<kbd>c</kbd></div><div class="d">прервать долгую команду</div></div>
+          <div class="row"><div class="k"><code>:messages</code></div><div class="d">ошибки и сообщения, которые мелькнули внизу</div></div>
+        </div>
+      </div>
+
+      <div class="p">
+        <h3>Найти клавишу или справку</h3>
+        <div class="rows">
+          <div class="row"><div class="k"><kbd>Space</kbd> и пауза</div><div class="d">which-key покажет, что можно нажать дальше</div></div>
+          <div class="row"><div class="k"><code>:Telescope keymaps</code></div><div class="d">поиск по всем назначенным клавишам</div></div>
+          <div class="row"><div class="k"><code>:Telescope help_tags</code></div><div class="d">поиск по встроенной справке</div></div>
+          <div class="row"><div class="k"><code>:h ciw</code></div><div class="d">справка по любой команде, клавише или опции</div></div>
+          <div class="row"><div class="k"><code>:verbose nmap &lt;Space&gt;f</code></div><div class="d">что делает клавиша и где её назначили</div></div>
+          <div class="row"><div class="k"><code>:Tutor</code></div><div class="d">встроенный учебник на полчаса, с упражнениями</div></div>
+        </div>
+      </div>
+
+      <div class="p wide">
+        <h3>Чем этот конфиг отличается от чистого nvim</h3>
+        <div class="rows">
+          <div class="row"><div class="k">буфер обмена</div><div class="d"><kbd>y</kbd> и <kbd>p</kbd> работают с системным буфером обмена</div></div>
+          <div class="row"><div class="k">номера строк</div><div class="d">относительные, у строки с курсором — настоящий номер</div></div>
+          <div class="row"><div class="k">отмена</div><div class="d">переживает перезапуск; swap-файлов нет</div></div>
+          <div class="row"><div class="k">поиск</div><div class="d">без учёта регистра, пока в запросе нет заглавных букв</div></div>
+          <div class="row"><div class="k">прокрутка</div><div class="d">курсор держится не ближе 8 строк от края экрана</div></div>
+          <div class="row"><div class="k"><code>:q</code></div><div class="d">с несохранёнными правками спрашивает, а не падает с ошибкой</div></div>
+          <div class="row"><div class="k">окна и мышь</div><div class="d">новые окна — справа и снизу; мышь выделяет и прокручивает</div></div>
+          <div class="row"><div class="k">невидимое</div><div class="d">табы видны как <code>→</code>, пробелы в конце строки — как <code>·</code></div></div>
+          <div class="row"><div class="k">отступы</div><div class="d">два пробела; скопированное коротко подсвечивается</div></div>
+          <div class="row"><div class="k">раскладка</div><div class="d">команды Normal работают на русской раскладке</div></div>
+        </div>
+      </div>
+
+    </div>
+  </section>
+
+  <footer>
+    <span>Конфиг: <code>nvim/.config/nvim/init.lua</code>, Markdown — <code>after/ftplugin/markdown.lua</code>.</span>
+    <span>Открыть снова: <code>cheat nvim</code> или значок в Dock.</span>
+    <span>Нажмите <kbd>/</kbd> для фильтра.</span>
+  </footer>
+
+</div>
+
+<script>
+(function () {
+  var q = document.getElementById('q');
+  var hint = document.getElementById('hint');
+  var body = document.body;
+  var secs = Array.prototype.slice.call(document.querySelectorAll('.sec'));
+  var panels = Array.prototype.slice.call(document.querySelectorAll('.p'));
+
+  // Текст каждой строки кешируем один раз: фильтр набирается посимвольно.
+  var rows = Array.prototype.slice.call(document.querySelectorAll('.row')).map(function (el) {
+    return { el: el, text: (el.textContent || '').toLowerCase(), panel: el.closest('.p') };
+  });
+  panels.forEach(function (p) {
+    p._head = (p.querySelector('h3') ? p.querySelector('h3').textContent : '').toLowerCase();
+  });
+
+  function apply(term) {
+    term = term.trim().toLowerCase();
+    if (!term) {
+      rows.forEach(function (r) { r.el.style.display = ''; });
+      panels.forEach(function (p) { p.classList.remove('has-hit'); });
+      secs.forEach(function (s) { s.classList.remove('has-hit'); });
+      body.classList.remove('filtering', 'no-hits');
+      hint.textContent = '/';
+      return;
+    }
+    var hits = 0;
+    panels.forEach(function (p) { p.classList.remove('has-hit'); });
+    rows.forEach(function (r) {
+      var show = r.text.indexOf(term) !== -1 || (r.panel && r.panel._head.indexOf(term) !== -1);
+      r.el.style.display = show ? '' : 'none';
+      if (show) { hits++; if (r.panel) r.panel.classList.add('has-hit'); }
+    });
+    secs.forEach(function (s) {
+      s.classList.toggle('has-hit', !!s.querySelector('.p.has-hit'));
+    });
+    body.classList.add('filtering');
+    body.classList.toggle('no-hits', hits === 0);
+    hint.textContent = hits;
+  }
+
+  q.addEventListener('input', function () { apply(q.value); });
+  q.addEventListener('keydown', function (e) {
+    if (e.key === 'Escape') { q.value = ''; apply(''); q.blur(); }
+  });
+  document.addEventListener('keydown', function (e) {
+    if (e.key === '/' && document.activeElement !== q) {
+      e.preventDefault();
+      q.focus();
+      q.select();
+    }
+  });
+})();
+</script>
+</body>
+</html>

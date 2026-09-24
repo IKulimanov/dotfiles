@@ -1,3 +1,8 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Шпаргалка по dotfiles</title>
 
 <style>
@@ -106,6 +111,7 @@
 
 /* ─── Каркас ─────────────────────────────────────────────── */
 body {
+  margin: 0;
   background: var(--bg);
   color: var(--ink);
   font-family: var(--f-sans);
@@ -135,6 +141,11 @@ body {
 .brand .sub {
   font-family: var(--f-mono); font-size: 11px; color: var(--ink-faint);
 }
+
+.pages { display: flex; gap: 12px; font-size: 11.5px; }
+.pages a { color: var(--ink-dim); text-decoration: none; border-bottom: 1px dotted var(--ink-faint); }
+.pages a:hover { color: var(--ink); border-bottom-style: solid; }
+.pages a:focus-visible { outline: 2px solid var(--shell); outline-offset: 2px; }
 
 .find { position: relative; display: flex; align-items: center; }
 .find input {
@@ -178,7 +189,8 @@ body {
   font-size: 19px; font-weight: 600; letter-spacing: -0.005em; margin: 0;
   color: var(--accent);
 }
-.sec-head p { margin: 0; font-size: 12.5px; color: var(--ink-dim); max-width: 62ch; }
+.sec-head p { margin: 0; font-size: 12.5px; color: var(--ink-dim); max-width: 72ch; }
+.sec-head a { color: var(--accent); }
 
 .sec[data-c="shell"] { --accent: var(--shell); --wash: var(--shell-wash); }
 .sec[data-c="git"]   { --accent: var(--git);   --wash: var(--git-wash); }
@@ -212,9 +224,18 @@ body {
 }
 .p.wide { grid-column: span 2; }
 @media (max-width: 760px) { .p.wide { grid-column: span 1; } }
+@media (max-width: 520px) {
+  .wrap { padding: 0 16px 56px; }
+  /* На телефоне шапка с разделами занимала бы треть экрана — пусть уезжает вверх */
+  .bar { position: static; margin: 0 -16px 18px; padding: 10px 16px; }
+  .find, .find input { width: 100%; }
+  .grid { grid-template-columns: minmax(0, 1fr); }
+}
 
-/* Строки: общий грид на панель, чтобы колонка ключей была ровной */
-.rows { display: grid; grid-template-columns: minmax(0, max-content) minmax(0, 1fr); column-gap: 14px; }
+/* Строки: общий грид на панель, чтобы колонка ключей была ровной.
+   Колонка не шире половины панели: длинное сочетание переносится,
+   а не сжимает описание в узкую полоску. */
+.rows { display: grid; grid-template-columns: fit-content(48%) minmax(0, 1fr); column-gap: 14px; }
 .row { display: contents; }
 .row > * { padding: 3.5px 0; border-top: 1px solid var(--line-soft); }
 .row:first-of-type > * { border-top: 0; padding-top: 0; }
@@ -275,14 +296,20 @@ footer code { color: var(--ink-faint); }
   .p { break-inside: avoid; border-color: #bbb; }
 }
 </style>
+</head>
+<body>
 
 <div class="wrap">
 
   <header class="bar">
     <div class="brand">
       <h1>Шпаргалка по dotfiles</h1>
-      <span class="sub">zsh · git · nvim · sec</span>
+      <span class="sub">zsh · git · nvim · k8s · sec · macOS</span>
     </div>
+    <nav class="pages" aria-label="Другие шпаргалки">
+      <a href="nvim-cheatsheet.html">nvim подробно</a>
+      <a href="k8s-cheatsheet.html">kubernetes по шагам</a>
+    </nav>
     <div class="find">
       <input id="q" type="search" placeholder="фильтр по всей странице" aria-label="Фильтр" autocomplete="off" spellcheck="false">
       <span class="hint" id="hint">/</span>
@@ -293,8 +320,10 @@ footer code { color: var(--ink-faint); }
       <a href="#lazygit" data-c="git">lazygit</a>
       <a href="#tig" data-c="tui">tig</a>
       <a href="#vim" data-c="vim">Neovim</a>
+      <a href="#k8s" data-c="tui">Kubernetes</a>
       <a href="#secrets" data-c="sec">Секреты</a>
       <a href="#ops" data-c="ops">Установка</a>
+      <a href="#mac" data-c="ops">macOS</a>
       <a href="#paths" data-c="ops">Файлы</a>
     </nav>
   </header>
@@ -365,6 +394,44 @@ footer code { color: var(--ink-faint); }
           <div class="row"><div class="k"><code>dc</code></div><div class="d">docker compose</div></div>
           <div class="row"><div class="k"><code>dps</code></div><div class="d">контейнеры таблицей: имя, статус, порты</div></div>
           <div class="row"><div class="k"><code>vim</code></div><div class="d">открывает nvim</div></div>
+        </div>
+      </div>
+
+      <div class="p">
+        <h3>Автодополнение и подсказки</h3>
+        <div class="rows">
+          <div class="row"><div class="k"><kbd>Tab</kbd></div><div class="d">меню вариантов, стрелки выбирают; регистр букв не важен</div></div>
+          <div class="row"><div class="k"><kbd>→</kbd> <span class="sep">·</span> <kbd>End</kbd></div><div class="d">принять серую подсказку из истории целиком</div></div>
+          <div class="row"><div class="k"><kbd>⌥</kbd>+<kbd>→</kbd></div><div class="d">принять из подсказки одно слово</div></div>
+          <div class="row"><div class="k">цвет команды</div><div class="d">подсвечивается при наборе: команда с опечаткой или без установки — красная</div></div>
+          <div class="row"><div class="k">имя каталога</div><div class="d">без <code>cd</code> — сразу перейти в него</div></div>
+          <div class="row"><div class="k"><code>cd -</code><kbd>Tab</kbd></div><div class="d">выбрать из каталогов, где уже были</div></div>
+          <div class="row"><div class="k"><code>#</code></div><div class="d">всё после него — комментарий, можно отложить команду в историю</div></div>
+        </div>
+      </div>
+
+      <div class="p">
+        <h3>Утилиты</h3>
+        <div class="rows">
+          <div class="row"><div class="k"><code>bat</code> файл</div><div class="d">cat с подсветкой и номерами строк</div></div>
+          <div class="row"><div class="k"><code>rg</code> текст</div><div class="d">поиск по содержимому; быстрее grep и не лезет в то, что в .gitignore</div></div>
+          <div class="row"><div class="k"><code>fd</code> имя</div><div class="d">поиск файлов по части имени</div></div>
+          <div class="row"><div class="k"><code>tldr</code> команда</div><div class="d">короткие примеры вместо man</div></div>
+          <div class="row"><div class="k"><code>jq</code></div><div class="d">разбор JSON: <code>curl … | jq '.items[0]'</code></div></div>
+          <div class="row"><div class="k"><code>htop</code></div><div class="d">процессы, память, нагрузка</div></div>
+          <div class="row"><div class="k"><code>mise use go@1.23</code></div><div class="d">версия Go, Node или Python для этого каталога</div></div>
+          <div class="row"><div class="k"><code>direnv allow</code></div><div class="d">разрешить <code>.envrc</code>: переменные каталога подгружаются при входе и уходят при выходе</div></div>
+        </div>
+      </div>
+
+      <div class="p">
+        <h3>Шпаргалки</h3>
+        <div class="rows">
+          <div class="row"><div class="k"><code>cheat</code></div><div class="d">эта страница: весь конфиг</div></div>
+          <div class="row"><div class="k"><code>cheat nvim</code></div><div class="d">как работать в nvim: движения, правка, поиск, окна, git, заметки</div></div>
+          <div class="row"><div class="k"><code>cheat k8s</code></div><div class="d">kubernetes по шагам: подключение, логи, рестарт, ошибки</div></div>
+          <div class="row"><div class="k"><code>cheat -t</code> …</div><div class="d">текстом в терминале, нужен w3m или lynx</div></div>
+          <div class="row"><div class="k">Dock</div><div class="d">значок «Шпаргалка nvim» открывает её одним кликом; поставить — <code>make dock</code></div></div>
         </div>
       </div>
 
@@ -601,7 +668,7 @@ footer code { color: var(--ink-faint); }
   <section class="sec" id="vim" data-c="vim">
     <div class="sec-head">
       <h2>Neovim</h2>
-      <p>Leader — это <kbd>Space</kbd>. Профиль узкий: YAML и k8s, документация, логи, Go, git. Забыли клавишу — нажмите <kbd>Space</kbd> и подождите, which-key покажет варианты.</p>
+      <p>Leader — это <kbd>Space</kbd>. Профиль узкий: YAML и k8s, документация, логи, Go, git. Забыли клавишу — нажмите <kbd>Space</kbd> и подождите, which-key покажет варианты. Как работать в nvim подробно, с движениями и правкой, — <a href="nvim-cheatsheet.html">отдельная шпаргалка</a>: <code>cheat nvim</code> или значок в Dock.</p>
     </div>
     <div class="grid">
 
@@ -613,6 +680,7 @@ footer code { color: var(--ink-faint); }
           <div class="row"><div class="k"><kbd>Ctrl</kbd>+<kbd>h</kbd> <kbd>j</kbd> <kbd>k</kbd> <kbd>l</kbd></div><div class="d">перейти в соседнее окно</div></div>
           <div class="row"><div class="k"><kbd>J</kbd> <span class="sep">/</span> <kbd>K</kbd></div><div class="d">в визуальном режиме — двигать выделенные строки</div></div>
           <div class="row"><div class="k"><kbd>-</kbd></div><div class="d">файловый менеджер в каталоге текущего файла</div></div>
+          <div class="row"><div class="k">русская раскладка</div><div class="d">команды Normal работают и на ней: <kbd>ц</kbd> — это <kbd>w</kbd>. Команды через <kbd>:</kbd> — на английской</div></div>
         </div>
       </div>
 
@@ -702,12 +770,26 @@ footer code { color: var(--ink-faint); }
           <div class="row"><div class="k">перенос строк</div><div class="d">включён по словам, с сохранением отступа списка; <kbd>j</kbd> и <kbd>k</kbd> ходят по экранным строкам</div></div>
           <div class="row"><div class="k"><kbd>Space</kbd> <kbd>o</kbd></div><div class="d">оглавление файла: заголовки списком, <kbd>Enter</kbd> — перейти</div></div>
           <div class="row"><div class="k"><kbd>Space</kbd> <kbd>x</kbd></div><div class="d">отметить пункт списка задач: <code>- [ ]</code> ↔ <code>- [x]</code></div></div>
-          <div class="row"><div class="k"><kbd>Space</kbd> <kbd>t</kbd> <kbd>m</kbd></div><div class="d">режим таблиц: столбцы выравниваются прямо при наборе</div></div>
+          <div class="row"><div class="k"><kbd>Space</kbd> <kbd>t</kbd> <kbd>m</kbd></div><div class="d">режим таблиц: <kbd>|</kbd> выравнивает столбцы при наборе, <kbd>|</kbd><kbd>|</kbd> — линия под заголовком. Правка таблицы — на <kbd>Space</kbd> <kbd>|</kbd></div></div>
           <div class="row"><div class="k"><kbd>g</kbd><kbd>x</kbd></div><div class="d">открыть ссылку под курсором в браузере</div></div>
           <div class="row"><div class="k"><kbd>z</kbd><kbd>=</kbd></div><div class="d">варианты замены для слова с опечаткой (проверка русского и английского)</div></div>
           <div class="row"><div class="k"><kbd>Space</kbd> <kbd>F</kbd></div><div class="d">отформатировать через prettier</div></div>
         </div>
         <p class="note">Файл на диске не переформатируется: перенос только визуальный, иначе дифф в git превращается в кашу. Орфография включается, когда стоит русский словарь: один раз <code>:set spell spelllang=ru</code>, nvim предложит скачать.</p>
+      </div>
+
+      <div class="p">
+        <h3>Заметки: vault ~/docs/work</h3>
+        <div class="rows">
+          <div class="row"><div class="k"><kbd>Space</kbd> <kbd>n</kbd> <kbd>n</kbd></div><div class="d">новая заметка в <code>inbox/</code>, имя файла — заголовок</div></div>
+          <div class="row"><div class="k"><kbd>Space</kbd> <kbd>n</kbd> <kbd>f</kbd> <span class="sep">·</span> <kbd>s</kbd></div><div class="d">найти заметку по имени · по тексту</div></div>
+          <div class="row"><div class="k"><kbd>Space</kbd> <kbd>n</kbd> <kbd>b</kbd></div><div class="d">кто ссылается на эту заметку</div></div>
+          <div class="row"><div class="k"><kbd>Space</kbd> <kbd>n</kbd> <kbd>t</kbd></div><div class="d">вставить шаблон из плейбука</div></div>
+          <div class="row"><div class="k"><kbd>Space</kbd> <kbd>n</kbd> <kbd>o</kbd></div><div class="d">открыть в приложении Obsidian</div></div>
+          <div class="row"><div class="k"><kbd>Enter</kbd></div><div class="d">на <code>[[ссылке]]</code> — перейти, на пункте списка — сменить отметку</div></div>
+          <div class="row"><div class="k"><kbd>]</kbd><kbd>o</kbd> <kbd>[</kbd><kbd>o</kbd></div><div class="d">к следующей · предыдущей ссылке</div></div>
+        </div>
+        <p class="note">obsidian.nvim включается только для файлов из <code>~/docs/work</code>. Frontmatter не пишется: заметки одинаково открываются здесь и в Obsidian.</p>
       </div>
 
       <div class="p">
@@ -729,6 +811,93 @@ footer code { color: var(--ink-faint); }
           <div class="row"><div class="k">Java</div><div class="d">намеренно не поддерживается: для неё IDEA</div></div>
           <div class="row"><div class="k">обновить плагины</div><div class="d"><code>:Lazy</code> — список и обновление, <code>:Mason</code> — языковые серверы, <code>:checkhealth</code> — диагностика</div></div>
         </div>
+      </div>
+
+    </div>
+  </section>
+
+  <!-- ═══════════════ KUBERNETES ═══════════════ -->
+  <section class="sec" id="k8s" data-c="tui">
+    <div class="sec-head">
+      <h2>Kubernetes</h2>
+      <p>Вход через корпоративный Keycloak: если сессия истекла, первая же команда откроет браузер. Текущий кластер всегда виден в промпте. Пошагово, с разбором ошибок, — <a href="k8s-cheatsheet.html">отдельная шпаргалка</a>: <code>cheat k8s</code>.</p>
+    </div>
+    <div class="grid">
+
+      <div class="p">
+        <h3>Где я</h3>
+        <div class="rows">
+          <div class="row"><div class="k">красный, <code>PROD:</code></div><div class="d">прод: рестарт увидят пользователи</div></div>
+          <div class="row"><div class="k">зелёный</div><div class="d">staging</div></div>
+          <div class="row"><div class="k">жёлтый</div><div class="d">по имени кластера среду не понять — считать продом</div></div>
+          <div class="row"><div class="k"><code>kctx</code></div><div class="d">сменить кластер; без аргумента — список</div></div>
+          <div class="row"><div class="k"><code>kns</code></div><div class="d">сменить namespace</div></div>
+          <div class="row"><div class="k"><code>kmyns</code></div><div class="d">namespace этого кластера, где у вас есть права</div></div>
+          <div class="row"><div class="k"><code>kubectl auth whoami</code></div><div class="d">под какой учёткой вы видны кластеру</div></div>
+        </div>
+      </div>
+
+      <div class="p">
+        <h3>Посмотреть</h3>
+        <div class="rows">
+          <div class="row"><div class="k"><code>k</code></div><div class="d">kubectl; вывод цветной через kubecolor</div></div>
+          <div class="row"><div class="k"><code>kgp</code> <span class="sep">·</span> <code>kgpw</code></div><div class="d">поды · поды с нодами и IP</div></div>
+          <div class="row"><div class="k"><code>kgd</code> <code>kgs</code> <code>kgn</code></div><div class="d">деплойменты · сервисы · ноды</div></div>
+          <div class="row"><div class="k"><code>kga</code></div><div class="d">всё в namespace</div></div>
+          <div class="row"><div class="k"><code>kd</code> ресурс имя</div><div class="d">describe: образ, лимиты, причина падения</div></div>
+          <div class="row"><div class="k"><code>kev</code></div><div class="d">события по времени — первое, куда смотреть, когда под не поднялся</div></div>
+          <div class="row"><div class="k"><code>ktop</code></div><div class="d">CPU и память по подам</div></div>
+        </div>
+      </div>
+
+      <div class="p">
+        <h3>Логи</h3>
+        <div class="rows">
+          <div class="row"><div class="k"><code>klf</code> под</div><div class="d">следить за логом, последние 200 строк</div></div>
+          <div class="row"><div class="k"><code>kl</code> под</div><div class="d">вывести лог и выйти</div></div>
+          <div class="row"><div class="k"><code>klp</code> под</div><div class="d">лог прошлого запуска — когда под упал и перезапустился</div></div>
+          <div class="row"><div class="k"><code>sl</code> имя</div><div class="d">stern: все поды, в имени которых есть «имя», каждый своим цветом</div></div>
+          <div class="row"><div class="k"><code>sl deploy/</code>имя</div><div class="d">все поды одного деплоймента</div></div>
+          <div class="row"><div class="k"><code>sls app=</code>имя</div><div class="d">по метке, а не по имени</div></div>
+          <div class="row"><div class="k"><code>-s 15m</code> <span class="sep">·</span> <code>-i ERROR</code></div><div class="d">к <code>sl</code>: начиная с 15 минут назад · только строки с ERROR</div></div>
+          <div class="row"><div class="k"><kbd>Ctrl</kbd>+<kbd>C</kbd></div><div class="d">перестать следить</div></div>
+        </div>
+      </div>
+
+      <div class="p">
+        <h3>Выбрать под из списка</h3>
+        <div class="rows">
+          <div class="row"><div class="k"><code>klog</code></div><div class="d">выбрать под → смотреть его логи</div></div>
+          <div class="row"><div class="k"><code>kssh</code></div><div class="d">выбрать под → зайти внутрь: bash, если есть, иначе sh</div></div>
+          <div class="row"><div class="k"><code>kdel</code></div><div class="d">выбрать под → удалить, деплоймент поднимет новый</div></div>
+        </div>
+        <p class="note">Справа в списке — describe выделенного пода, чтобы не выбрать не тот.</p>
+      </div>
+
+      <div class="p">
+        <h3>Перезапуск и доступ внутрь</h3>
+        <div class="rows">
+          <div class="row"><div class="k"><code>krr</code> deployment</div><div class="d">rolling restart: реплики меняются по очереди, сервис не проседает</div></div>
+          <div class="row"><div class="k"><code>krs</code> <span class="sep">·</span> <code>krh</code></div><div class="d">как идёт выкатка · история выкаток</div></div>
+          <div class="row"><div class="k"><code>kex</code> под <code>-- sh</code></div><div class="d">зайти внутрь, если имя пода известно</div></div>
+          <div class="row"><div class="k"><code>kpf</code> под <code>8080:8080</code></div><div class="d">порт пода на localhost; <code>svc/имя</code> вместо пода — на сервис</div></div>
+        </div>
+        <p class="note">Имя деплоймента — имя пода без двух хвостов: <code>api-7d9ddccb4b-4k97x</code> → <code>api</code>. Точный список — <code>kgd</code>.</p>
+      </div>
+
+      <div class="p wide">
+        <h3>k9s — весь кластер в одном окне</h3>
+        <div class="rows">
+          <div class="row"><div class="k"><code>k9s</code> <span class="sep">·</span> <code>k9s --readonly</code></div><div class="d">запустить · без права что-то менять, для чужого кластера</div></div>
+          <div class="row"><div class="k"><code>:po</code> <code>:deploy</code> <code>:svc</code></div><div class="d">поды · деплойменты · сервисы</div></div>
+          <div class="row"><div class="k"><code>:ns</code> <span class="sep">·</span> <code>:ctx</code></div><div class="d">сменить namespace · кластер</div></div>
+          <div class="row"><div class="k"><kbd>/</kbd> <span class="sep">·</span> <kbd>Enter</kbd> <span class="sep">·</span> <kbd>Esc</kbd></div><div class="d">фильтр по списку · провалиться внутрь · на шаг назад</div></div>
+          <div class="row"><div class="k"><kbd>l</kbd> <span class="sep">·</span> <kbd>⇧</kbd>+<kbd>L</kbd></div><div class="d">логи пода · логи прошлого запуска</div></div>
+          <div class="row"><div class="k"><kbd>d</kbd> <kbd>y</kbd> <kbd>s</kbd></div><div class="d">describe · yaml · шелл внутри пода</div></div>
+          <div class="row"><div class="k"><kbd>Ctrl</kbd>+<kbd>D</kbd></div><div class="d">удалить, спросит подтверждение</div></div>
+          <div class="row"><div class="k"><kbd>?</kbd> <span class="sep">·</span> <code>:q</code></div><div class="d">все клавиши текущего вида · выйти</div></div>
+        </div>
+        <p class="note">Хвост логов — 200 строк, длинные строки переносятся, у каждой видно время: иначе JSON-логи и стектрейсы обрезаются. Доступы лежат в <code>~/.kube/config</code> и в git не попадают.</p>
       </div>
 
     </div>
@@ -838,6 +1007,7 @@ footer code { color: var(--ink-faint); }
           <div class="row"><div class="k"><code>make check</code></div><div class="d">что установлено и подключено, галочка или крестик по каждому пункту, и команда для исправления рядом</div></div>
           <div class="row"><div class="k"><code>make relink</code></div><div class="d">пересоздать симлинки после добавления файлов в репозиторий</div></div>
           <div class="row"><div class="k"><code>make core</code></div><div class="d">доставить CLI-пакеты из Brewfile</div></div>
+          <div class="row"><div class="k"><code>make apps</code> <span class="sep">·</span> <code>make macos</code></div><div class="d">приложения · системные настройки, см. раздел macOS</div></div>
           <div class="row"><div class="k"><code>make identity</code></div><div class="d">заново задать имя и почту для коммитов</div></div>
           <div class="row"><div class="k"><code>make lint</code></div><div class="d">проверить синтаксис всех конфигов разом</div></div>
           <div class="row"><div class="k"><code>make test</code></div><div class="d">тесты sec на временном keychain</div></div>
@@ -867,6 +1037,53 @@ footer code { color: var(--ink-faint); }
       </div>
 
       <div class="p">
+        <h3>После переустановки</h3>
+        <div class="rows">
+          <div class="row"><div class="k">шрифт</div><div class="d">iTerm2 → Profiles → Text → Font → MesloLGS Nerd Font Mono, иначе промпт рисует квадраты</div></div>
+          <div class="row"><div class="k">Option</div><div class="d">iTerm2 → Profiles → Keys → Left Option key → <code>Esc+</code></div></div>
+          <div class="row"><div class="k">первый nvim</div><div class="d">плагины и языковые серверы ставятся сами, около минуты</div></div>
+        </div>
+      </div>
+
+    </div>
+  </section>
+
+  <!-- ═══════════════ MACOS ═══════════════ -->
+  <section class="sec" id="mac" data-c="ops">
+    <div class="sec-head">
+      <h2>macOS</h2>
+      <p>Системные настройки и приложения тоже описаны в репозитории: новая машина настраивается теми же командами.</p>
+    </div>
+    <div class="grid">
+
+      <div class="p">
+        <h3>Что меняет make macos</h3>
+        <div class="rows">
+          <div class="row"><div class="k">клавиатура</div><div class="d">быстрый автоповтор, долгое нажатие повторяет букву, без автозамены кавычек, тире и заглавных, <kbd>Tab</kbd> ходит по всем кнопкам диалогов</div></div>
+          <div class="row"><div class="k">Finder</div><div class="d">видны расширения и скрытые файлы, путь в заголовке и внизу окна, вид списком, поиск в текущей папке</div></div>
+          <div class="row"><div class="k">скриншоты</div><div class="d">в <code>~/Pictures/Screenshots</code>, PNG, без тени</div></div>
+          <div class="row"><div class="k">Dock</div><div class="d">прячется без задержки, без недавних приложений, значки 48 точек</div></div>
+          <div class="row"><div class="k">прочее</div><div class="d">новые документы сохраняются на диск, а не в iCloud; нет вопроса «скачано из интернета»; <code>.DS_Store</code> не пишется на флешки и сетевые диски</div></div>
+        </div>
+        <p class="note">Каждая настройка обратима: поменять значение в <code>macos/defaults.sh</code> и запустить снова.</p>
+      </div>
+
+      <div class="p">
+        <h3>Приложения — make apps</h3>
+        <div class="rows">
+          <div class="row"><div class="k">iTerm2</div><div class="d">терминал: сплиты, профили, поиск</div></div>
+          <div class="row"><div class="k">Docker Desktop</div><div class="d">контейнеры и <code>docker compose</code></div></div>
+          <div class="row"><div class="k">Raycast</div><div class="d">запуск приложений, история буфера обмена, сниппеты, окна</div></div>
+          <div class="row"><div class="k">espanso</div><div class="d">подстановка текста по сокращению</div></div>
+          <div class="row"><div class="k">Hidden Bar</div><div class="d">прячет лишние значки в строке меню</div></div>
+          <div class="row"><div class="k">AppCleaner</div><div class="d">удаляет приложение вместе с его файлами</div></div>
+          <div class="row"><div class="k">Keka</div><div class="d">архивы rar и 7z</div></div>
+          <div class="row"><div class="k">QLMarkdown · IINA</div><div class="d">Markdown по пробелу в Finder · видеоплеер</div></div>
+        </div>
+        <p class="note">Obsidian поставлен вручную: brew не может взять под себя приложение, установленное без него.</p>
+      </div>
+
+      <div class="p">
         <h3>Quick Look для Markdown</h3>
         <div class="rows">
           <div class="row"><div class="k"><kbd>Space</kbd> в Finder</div><div class="d">показывает отрендеренный <code>.md</code>, а не простыню текста</div></div>
@@ -878,11 +1095,12 @@ footer code { color: var(--ink-faint); }
       </div>
 
       <div class="p">
-        <h3>После переустановки</h3>
+        <h3>Шпаргалка по nvim в Dock</h3>
         <div class="rows">
-          <div class="row"><div class="k">шрифт</div><div class="d">iTerm2 → Profiles → Text → Font → MesloLGS Nerd Font Mono, иначе промпт рисует квадраты</div></div>
-          <div class="row"><div class="k">Option</div><div class="d">iTerm2 → Profiles → Keys → Left Option key → <code>Esc+</code></div></div>
-          <div class="row"><div class="k">первый nvim</div><div class="d">плагины и языковые серверы ставятся сами, около минуты</div></div>
+          <div class="row"><div class="k"><code>make dock</code></div><div class="d">собрать значок «Шпаргалка nvim» в <code>~/Applications</code> и закрепить в Dock</div></div>
+          <div class="row"><div class="k">клик по значку</div><div class="d">открывает <code>docs/nvim-cheatsheet.html</code> в браузере по умолчанию</div></div>
+          <div class="row"><div class="k">переехал репозиторий</div><div class="d">запустить <code>make dock</code> ещё раз: путь к странице записан в значке</div></div>
+          <div class="row"><div class="k">убрать</div><div class="d">вытащить значок из Dock и удалить <code>~/Applications/Шпаргалка nvim.app</code></div></div>
         </div>
       </div>
 
@@ -903,23 +1121,30 @@ footer code { color: var(--ink-faint); }
           <div class="row"><div class="k"><code>~/.zshenv</code></div><div class="d">переменные окружения, PATH, XDG-каталоги. Читается всеми шеллами, включая запуск из Dock</div></div>
           <div class="row"><div class="k"><code>~/.config/zsh/.zprofile</code></div><div class="d">ставит Homebrew в начало PATH, иначе системный git перекрывает свежий</div></div>
           <div class="row"><div class="k"><code>~/.config/zsh/.zshrc</code></div><div class="d">загрузчик: Oh-My-Zsh, тема, модули</div></div>
-          <div class="row"><div class="k"><code>~/.config/zsh/conf.d/</code></div><div class="d">00 опции · 10 клавиши · 20 инструменты · 30 алиасы</div></div>
+          <div class="row"><div class="k"><code>~/.config/zsh/conf.d/</code></div><div class="d">00 опции · 10 клавиши · 20 инструменты · 30 алиасы и cheat · 35 v, vf, vg, md · 40 kubernetes</div></div>
           <div class="row"><div class="k"><code>~/.config/git/config</code></div><div class="d">настройки и алиасы git</div></div>
-          <div class="row"><div class="k"><code>~/.config/nvim/init.lua</code></div><div class="d">весь конфиг редактора одним файлом</div></div>
+          <div class="row"><div class="k"><code>~/.config/nvim/init.lua</code></div><div class="d">конфиг редактора: опции, клавиши, плагины</div></div>
+          <div class="row"><div class="k"><code>~/.config/nvim/after/ftplugin/markdown.lua</code></div><div class="d">профиль Markdown: перенос, орфография, оглавление, чекбоксы</div></div>
+          <div class="row"><div class="k"><code>~/.config/k9s/config.yaml</code></div><div class="d">k9s: хвост и перенос логов, время у строк</div></div>
           <div class="row"><div class="k"><code>~/.config/lazygit/config.yml</code></div><div class="d">lazygit, со шпаргалкой в комментариях</div></div>
           <div class="row"><div class="k"><code>~/.config/tig/config</code></div><div class="d">tig: колонки и свои клавиши</div></div>
           <div class="row"><div class="k"><code>~/bin/sec</code></div><div class="d">сама команда для секретов</div></div>
           <div class="row"><div class="k"><code>~/.config/zsh/conf.d/40-sec.zsh</code></div><div class="d">автодополнение sec и алиас <code>sc</code></div></div>
+          <div class="row"><div class="k"><code>~/dotfiles/docs/</code></div><div class="d">шпаргалки: <code>cheatsheet.html</code>, <code>nvim-cheatsheet.html</code>, <code>k8s-cheatsheet.html</code></div></div>
+          <div class="row"><div class="k"><code>~/dotfiles/macos/</code></div><div class="d"><code>defaults.sh</code> — настройки системы, <code>quicklook.sh</code> — Quick Look, <code>dock.sh</code> — значок шпаргалки</div></div>
         </div>
       </div>
 
-      <div class="p paths">
+      <div class="p wide paths">
         <h3>Вне репозитория</h3>
         <div class="rows">
           <div class="row"><div class="k"><code>~/.config/git/identity</code></div><div class="d">имя и почта для коммитов<span class="tag">не в git</span></div></div>
           <div class="row"><div class="k"><code>~/.config/zsh/local.zsh</code></div><div class="d">секреты и настройки этой машины<span class="tag">не в git</span></div></div>
           <div class="row"><div class="k"><code>~/.local/state/zsh/history</code></div><div class="d">история команд</div></div>
           <div class="row"><div class="k"><code>~/Library/Keychains/dev.keychain-db</code></div><div class="d">сами секреты<span class="tag">не в git</span></div></div>
+          <div class="row"><div class="k"><code>~/.kube/config</code></div><div class="d">доступы к кластерам, права 600<span class="tag">не в git</span></div></div>
+          <div class="row"><div class="k"><code>~/docs/work</code></div><div class="d">vault заметок: nvim и Obsidian правят одни и те же файлы</div></div>
+          <div class="row"><div class="k"><code>~/Applications/Шпаргалка nvim.app</code></div><div class="d">значок для Dock, собирается <code>make dock</code></div></div>
           <div class="row"><div class="k"><code>~/.dotfiles-backup/</code></div><div class="d">то, что установщик убрал с дороги</div></div>
         </div>
       </div>
@@ -931,7 +1156,7 @@ footer code { color: var(--ink-faint); }
     <span>Шпаргалка собрана по конфигам репозитория dotfiles.</span>
     <span>Цвета — Catppuccin Latte и Mocha, те же, что в nvim и bat.</span>
     <span>Нажмите <kbd>/</kbd> для фильтра.</span>
-    <span>Один файл, без интернета: <code>cheat</code> в терминале.</span>
+    <span>Без интернета: <code>cheat</code>, <code>cheat nvim</code>, <code>cheat k8s</code>.</span>
   </footer>
 
 </div>
@@ -990,3 +1215,5 @@ footer code { color: var(--ink-faint); }
   });
 })();
 </script>
+</body>
+</html>

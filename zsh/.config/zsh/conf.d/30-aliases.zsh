@@ -41,18 +41,30 @@ command -v nvim &>/dev/null && alias vim="nvim"
 # Быстрый доступ к самим dotfiles ($DOTFILES вычисляется в .zshenv)
 alias dot='cd "${DOTFILES:-$HOME/dotfiles}"'
 
-# ── Шпаргалка ──────────────────────────────────────────────────
-# Один HTML-файл в репозитории, без внешних запросов: открывается
-# без интернета и работает, даже когда сломан сам шелл.
-#   cheat        открыть в браузере
-#   cheat -t     показать в терминале (нужен lynx или w3m; иначе подскажет)
+# ── Шпаргалки ──────────────────────────────────────────────────
+# HTML-файлы в docs/, без внешних запросов: открываются без интернета
+# и работают, даже когда сломан сам шелл.
+#   cheat          весь конфиг
+#   cheat nvim     как работать в nvim (она же — значок в Dock, make dock)
+#   cheat k8s      kubernetes по шагам
+#   cheat -t …     показать в терминале (нужен lynx или w3m; иначе подскажет)
 cheat() {
-  local f="${DOTFILES:-$HOME/dotfiles}/docs/cheatsheet.html"
+  local text=0 topic="" arg name
+  for arg in "$@"; do
+    if [[ "$arg" == "-t" ]]; then text=1; else topic="$arg"; fi
+  done
+  case "$topic" in
+    "")       name=cheatsheet ;;
+    nvim|vim) name=nvim-cheatsheet ;;
+    k8s|kube) name=k8s-cheatsheet ;;
+    *) print -u2 "Нет шпаргалки «$topic». Есть: cheat, cheat nvim, cheat k8s"; return 2 ;;
+  esac
+  local f="${DOTFILES:-$HOME/dotfiles}/docs/$name.html"
   if [[ ! -f "$f" ]]; then
     print -u2 "Шпаргалка не найдена: $f"
     return 1
   fi
-  if [[ "$1" == "-t" ]]; then
+  if (( text )); then
     if command -v w3m &>/dev/null;   then w3m -dump "$f" | ${PAGER:-less}
     elif command -v lynx &>/dev/null; then lynx -dump "$f" | ${PAGER:-less}
     else print -u2 "Для текстового режима нужен w3m или lynx: brew install w3m"; return 1
