@@ -61,5 +61,7 @@ lint:            ## проверить синтаксис конфигов
 	@for f in zsh/.config/zsh/conf.d/*.zsh; do zsh -n "$$f"; done
 	@zsh -n sec/bin/sec sec/.config/zsh/conf.d/40-sec.zsh
 	@git config -f git/.config/git/config --list >/dev/null
-	@nvim --headless --clean -es +'lua assert(loadfile("nvim/.config/nvim/init.lua"))' +q
+	@for f in $$(find nvim -name '*.lua'); do \
+	  nvim --headless --clean -es +"lua assert(loadfile('$$f'))" +q; \
+	done
 	@echo "OK"

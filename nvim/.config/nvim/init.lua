@@ -105,24 +105,8 @@ vim.api.nvim_create_autocmd("TextYankPost", {
   callback = function() vim.highlight.on_yank() end,
 })
 
--- =====================================================
--- Заметки (markdown)
--- =====================================================
--- Прозу читаем с мягким переносом по словам. Орфографию включаем, только когда
--- есть русский словарь: без него каждое русское слово подчёркнуто как ошибка.
--- Словарь ставится один раз: :set spell spelllang=ru — nvim сам предложит скачать.
-vim.api.nvim_create_autocmd("FileType", {
-  pattern = "markdown",
-  callback = function()
-    vim.opt_local.wrap = true
-    vim.opt_local.linebreak = true
-    vim.opt_local.conceallevel = 2
-    if #vim.api.nvim_get_runtime_file("spell/ru.utf-8.spl", false) > 0 then
-      vim.opt_local.spelllang = { "ru", "en" }
-      vim.opt_local.spell = true
-    end
-  end,
-})
+-- Markdown и заметки (перенос строк, орфография, оглавление, чекбоксы) —
+-- в after/ftplugin/markdown.lua.
 
 -- =====================================================
 -- Bootstrap lazy.nvim
@@ -364,6 +348,8 @@ require("lazy").setup({
   },
 
   -- ── Документация ──────────────────────────────────
+  -- Остальное для Markdown — в after/ftplugin/markdown.lua:
+  -- перенос строк, орфография, оглавление, чекбоксы.
   {
     "MeanderingProgrammer/render-markdown.nvim",
     dependencies = { "nvim-treesitter/nvim-treesitter" },
@@ -414,6 +400,17 @@ require("lazy").setup({
       picker = { name = "telescope.nvim" },
       ui = { enable = false },
     },
+  },
+
+  -- Таблицы выравниваются прямо при наборе: Space tm, дальше | и текст
+  {
+    "dhruvasagar/vim-table-mode",
+    ft = { "markdown" },
+    cmd = { "TableModeToggle", "TableModeEnable" },
+    init = function()
+      vim.g.table_mode_corner = "|"          -- разделитель в стиле GitHub
+      vim.g.table_mode_disable_mappings = 1  -- <leader>t* заняты под toggle
+    end,
   },
 
   -- ── Логи: подсветка уровней и таймстампов ─────────
