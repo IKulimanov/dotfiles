@@ -165,6 +165,15 @@ check_all() {
     pass "git identity: $(git config -f "$IDENTITY" user.name) <$(git config -f "$IDENTITY" user.email)>"
   fi
 
+  # Quick Look для Markdown — не обязателен, поэтому предупреждение, а не ошибка
+  if [[ -d /Applications/QLMarkdown.app ]]; then
+    if [[ "$(pluginkit -m -i org.sbarex.QLMarkdown.QLExtension 2>/dev/null | cut -c1)" == "+" ]]; then
+      pass "Quick Look для Markdown"
+    else
+      warn "QLMarkdown установлен, но расширение выключено — make quicklook"
+    fi
+  fi
+
   echo ""
   if (( fails == 0 )); then
     ok "Всё на месте."
@@ -458,6 +467,17 @@ if [[ "$(uname -s)" == "Darwin" ]]; then
   echo ""
   if ask "Применить системные настройки? (обратимо)"; then
     run "'$DOTFILES/macos/defaults.sh'"
+  fi
+
+  if [[ -d /Applications/QLMarkdown.app ]]; then
+    echo ""
+    echo "  Quick Look: пробел на .md в Finder покажет отрендеренный Markdown"
+    echo "  вместо простыни текста. Расширение регистрируется одним запуском"
+    echo "  QLMarkdown; настройки берутся из macos/qlmarkdown.plist, если он есть."
+    echo ""
+    if ask "Включить Quick Look для Markdown?"; then
+      run "'$DOTFILES/macos/quicklook.sh'" || warn "Quick Look не включился, см. вывод выше"
+    fi
   fi
 fi
 

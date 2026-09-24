@@ -47,7 +47,7 @@ lazygit/        TUI для git: стейджинг, ветки, rebase
 tig/            история, blame и ветки в консоли
 k9s/            TUI для kubernetes: поды, логи, рестарт
 brew/           Brewfile.core (CLI) и Brewfile.apps (GUI)
-macos/          системные настройки через defaults write
+macos/          системные настройки через defaults write, Quick Look для Markdown
 sec/            dev-секреты в отдельном Keychain: sec add/get/cp/env, экспорт для переезда
 test/           тесты sec (make test)
 docs/           шпаргалки: k8s-cheatsheet.html — открыть в браузере
@@ -369,6 +369,26 @@ brew bundle --file=brew/Brewfile.apps   # GUI
 
 Автоповтор клавиш, отключение автозамены кавычек, показ расширений и скрытых файлов
 в Finder, отдельный каталог для скриншотов, поведение Dock. Всё обратимо.
+
+#### Quick Look для Markdown
+
+```bash
+make quicklook    # включить: пробел на .md в Finder рисует Markdown, а не текст
+make ql-save      # сохранить настройки QLMarkdown в macos/qlmarkdown.plist
+```
+
+Рендерит [QLMarkdown](https://github.com/sbarex/QLMarkdown) (`cask "qlmarkdown"`).
+Одной установки мало: система узнаёт о расширении только после первого запуска
+приложения, поэтому `macos/quicklook.sh` запускает его, включает расширение через
+`pluginkit` и сбрасывает кеш Quick Look — иначе уже просмотренные `.md` останутся
+текстом.
+
+Настройки (тема, шрифт, расширения Markdown) правятся в самом приложении. Оно в
+песочнице, и его plist лежит в групповом контейнере, а не в `~/Library/Preferences`;
+`make ql-save` кладёт этот plist в репозиторий, `make quicklook` возвращает на место
+при развёртывании новой машины.
+
+Приложение ставит ещё и `qlmarkdown_cli` — рендер `.md` в html из терминала.
 
 ### sec — dev-секреты
 
