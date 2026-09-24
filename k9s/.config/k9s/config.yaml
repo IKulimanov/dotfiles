@@ -9,7 +9,8 @@
 k9s:
   liveViewAutoRefresh: false
   gpuVendors: {}
-  screenDumpDir: /Users/ivankulimanov/Library/Application Support/k9s/screen-dumps
+  # screenDumpDir не задан: по умолчанию дампы идут в $XDG_STATE_HOME/k9s/screen-dumps.
+  # Абсолютный путь с именем пользователя на другой машине указывает в чужой каталог.
   refreshRate: 2
   apiServerTimeout: 2m0s
   maxConnRetry: 5
