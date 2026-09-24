@@ -479,6 +479,14 @@ if [[ "$(uname -s)" == "Darwin" ]]; then
       run "'$DOTFILES/macos/quicklook.sh'" || warn "Quick Look не включился, см. вывод выше"
     fi
   fi
+
+  echo ""
+  echo "  Шпаргалка по nvim в Dock: значок «Шпаргалка nvim» открывает"
+  echo "  docs/nvim-cheatsheet.html одним кликом. Повторный запуск не создаёт второй."
+  echo ""
+  if ask "Закрепить шпаргалку по nvim в Dock?"; then
+    run "'$DOTFILES/macos/dock.sh'" || warn "Значок в Dock не появился, см. вывод выше"
+  fi
 fi
 
 # ═══════════════════════════════════════════════════════════════
@@ -498,7 +506,7 @@ cat <<TXT
   4. При первом запуске nvim плагины и LSP-серверы поставятся сами.
   5. Повторить проверку в любой момент:      make check
 
-Шпаргалка:
+Шпаргалка (полная — cheat, по nvim — cheat nvim, по kubernetes — cheat k8s):
   Ctrl+R  поиск по истории      Ctrl+T  поиск файлов      Alt+C  переход в каталог
   glo     лог (fzf)             gd      diff (fzf)        gcb    ветки (fzf)
   git lg / lga / ll / bra / bl  история, ветки, blame     lg     lazygit

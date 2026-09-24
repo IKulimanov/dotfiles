@@ -4,7 +4,7 @@ HOME_DIR ?= $(HOME)
 PACKAGES := zsh git nvim lazygit tig k9s sec
 STOW := stow --no-folding --ignore='\.DS_Store' -t "$(HOME_DIR)"
 
-.PHONY: help install check link unlink relink core apps macos quicklook ql-save lint identity test
+.PHONY: help install check link unlink relink core apps macos quicklook ql-save dock lint identity test
 
 help:            ## показать эту справку
 	@grep -E '^[a-z-]+:.*?## .*$$' $(MAKEFILE_LIST) \
@@ -40,6 +40,9 @@ quicklook:       ## включить Quick Look для Markdown (пробел в
 ql-save:         ## сохранить настройки QLMarkdown в репозиторий
 	@./macos/quicklook.sh --save
 
+dock:            ## закрепить шпаргалку по nvim в Dock
+	@./macos/dock.sh
+
 identity:        ## настроить git-идентичности заново
 	@rm -f "$(HOME_DIR)/.config/git/identity" && ./install.sh
 
@@ -48,14 +51,14 @@ test:            ## прогнать тесты sec на временном keyc
 
 lint:            ## проверить синтаксис конфигов
 	@if command -v shellcheck >/dev/null; then \
-	  shellcheck install.sh macos/defaults.sh macos/quicklook.sh; \
+	  shellcheck install.sh macos/defaults.sh macos/quicklook.sh macos/dock.sh; \
 	else \
 	  echo "  (shellcheck не установлен, пропущен: brew install shellcheck)"; \
 	fi
 	@# bash 3.2 (системный на macOS) считает многобайтный символ частью имени
 	@# переменной: "$$name…" ломается с unbound variable. Нужны фигурные скобки.
 	@perl -ne 'print "$$ARGV:$$.: $$_" and $$bad=1 if /\$$\w+[^\x00-\x7F]/; \
-	  END { exit 1 if $$bad }' install.sh macos/defaults.sh macos/quicklook.sh \
+	  END { exit 1 if $$bad }' install.sh macos/defaults.sh macos/quicklook.sh macos/dock.sh \
 	  || { echo "  ↑ переменная перед не-ASCII символом: оберните в \$${}"; exit 1; }
 	@zsh -n zsh/.zshenv zsh/.config/zsh/.zshrc zsh/.config/zsh/.zprofile
 	@for f in zsh/.config/zsh/conf.d/*.zsh; do zsh -n "$$f"; done
