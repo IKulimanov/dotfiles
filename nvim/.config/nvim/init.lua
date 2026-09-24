@@ -196,7 +196,7 @@ require("lazy").setup({
     config = function()
       local langs = {
         -- инфраструктура и конфиги — основная работа здесь
-        "yaml", "json", "jsonc", "toml", "hcl", "terraform",
+        "yaml", "json", "toml", "hcl", "terraform",
         "dockerfile", "bash", "xml",
         -- документация
         "markdown", "markdown_inline",
@@ -210,6 +210,9 @@ require("lazy").setup({
         "lua", "vim", "vimdoc", "query", "regex",
       }
       require("nvim-treesitter").install(langs)
+      -- Отдельного парсера jsonc в ветке main нет: с ним в списке каждый запуск
+      -- начинался с предупреждения. Комментарии понимает и парсер json.
+      vim.treesitter.language.register("json", "jsonc")
       -- Подсветка и отступы включаются per-buffer через встроенный API
       vim.api.nvim_create_autocmd("FileType", {
         callback = function(ev)
