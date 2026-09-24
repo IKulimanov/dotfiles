@@ -11,7 +11,7 @@ set -euo pipefail
 DOTFILES="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd -P)"
 XDG_CONFIG="${XDG_CONFIG_HOME:-$HOME/.config}"
 XDG_STATE="${XDG_STATE_HOME:-$HOME/.local/state}"
-PACKAGES=(zsh git nvim lazygit tig k9s)
+PACKAGES=(zsh git nvim lazygit tig k9s sec)
 ZSH_DIR="$XDG_CONFIG/zsh/oh-my-zsh"
 IDENTITY="$XDG_CONFIG/git/identity"
 # .DS_Store не должен становиться симлинком, даже если Finder его создал
@@ -115,7 +115,7 @@ check_all() {
 
   # инструменты
   local t
-  for t in brew stow git nvim delta lazygit tig fzf fd bat eza zoxide; do
+  for t in brew stow git nvim delta lazygit tig fzf fd bat eza zoxide age; do
     if command -v "$t" &>/dev/null; then pass "$t"; else fail "$t не найден" "make core"; fi
   done
   if command -v git &>/dev/null && [[ "$(command -v git)" == /usr/bin/git ]]; then
@@ -275,6 +275,7 @@ else
       lazygit) desc="TUI для git" ;;
       tig)     desc="история и blame в консоли" ;;
       k9s)     desc="TUI для kubernetes: поды, логи, рестарт" ;;
+      sec)     desc="dev-секреты в Keychain: sec add/get/cp, экспорт для переезда" ;;
       *)       desc="$pkg" ;;
     esac
 

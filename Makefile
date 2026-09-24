@@ -1,10 +1,10 @@
 # Точка входа. Всё то же самое делает ./install.sh, но по шагам.
 SHELL := /usr/bin/env bash
 HOME_DIR ?= $(HOME)
-PACKAGES := zsh git nvim lazygit tig k9s
+PACKAGES := zsh git nvim lazygit tig k9s sec
 STOW := stow --no-folding --ignore='\.DS_Store' -t "$(HOME_DIR)"
 
-.PHONY: help install check link unlink relink core apps macos lint identity
+.PHONY: help install check link unlink relink core apps macos lint identity test
 
 help:            ## показать эту справку
 	@grep -E '^[a-z-]+:.*?## .*$$' $(MAKEFILE_LIST) \
@@ -37,6 +37,9 @@ macos:           ## применить системные настройки mac
 identity:        ## настроить git-идентичности заново
 	@rm -f "$(HOME_DIR)/.config/git/identity" && ./install.sh
 
+test:            ## прогнать тесты sec на временном keychain
+	@./test/sec_test.zsh
+
 lint:            ## проверить синтаксис конфигов
 	@if command -v shellcheck >/dev/null; then \
 	  shellcheck install.sh macos/defaults.sh; \
@@ -50,6 +53,7 @@ lint:            ## проверить синтаксис конфигов
 	  || { echo "  ↑ переменная перед не-ASCII символом: оберните в \$${}"; exit 1; }
 	@zsh -n zsh/.zshenv zsh/.config/zsh/.zshrc zsh/.config/zsh/.zprofile
 	@for f in zsh/.config/zsh/conf.d/*.zsh; do zsh -n "$$f"; done
+	@zsh -n sec/bin/sec sec/.config/zsh/conf.d/40-sec.zsh
 	@git config -f git/.config/git/config --list >/dev/null
 	@nvim --headless --clean -es +'lua assert(loadfile("nvim/.config/nvim/init.lua"))' +q
 	@echo "OK"

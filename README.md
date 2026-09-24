@@ -27,7 +27,7 @@ git clone https://github.com/IKulimanov/dotfiles.git ~/dotfiles && cd ~/dotfiles
 
 ```bash
 make core      # brew bundle --file=brew/Brewfile.core
-make link      # stow --no-folding -t ~ zsh git nvim lazygit tig k9s
+make link      # stow --no-folding -t ~ zsh git nvim lazygit tig k9s sec
 make identity  # имя и почта для git
 make help      # остальные цели
 ```
@@ -48,6 +48,8 @@ tig/            история, blame и ветки в консоли
 k9s/            TUI для kubernetes: поды, логи, рестарт
 brew/           Brewfile.core (CLI) и Brewfile.apps (GUI)
 macos/          системные настройки через defaults write
+sec/            dev-секреты в отдельном Keychain: sec add/get/cp/env, экспорт для переезда
+test/           тесты sec (make test)
 docs/           шпаргалки: k8s-cheatsheet.html — открыть в браузере
 install.sh      интерактивный установщик; --check проверяет, что всё на месте
 Makefile        отдельные операции: make check, link, core, identity, lint
@@ -367,3 +369,33 @@ brew bundle --file=brew/Brewfile.apps   # GUI
 
 Автоповтор клавиш, отключение автозамены кавычек, показ расширений и скрытых файлов
 в Finder, отдельный каталог для скриншотов, поведение Dock. Всё обратимо.
+
+### sec — dev-секреты
+
+Пароли БД, токены, SSH-ключи и kubeconfig лежат в отдельном keychain
+`~/Library/Keychains/dev.keychain-db`, а не в Apple Passwords: у Passwords нет API,
+а `security` из скрипта работает. Команда `sec` (`sec/bin/sec`) прячет длинные вызовы
+`security`, даёт автодополнение имён и экспорт для переезда.
+
+```bash
+sec init                                   # один раз: создать keychain, задать пароль
+sec add pg-staging -a app -n "db1:5432"    # скрытый ввод; или: printf '%s' TOKEN | sec add kafka/token
+sec add -f ~/.kube/config k8s/prod         # файл целиком
+sec get pg-staging                         # в stdout: psql "postgres://app:$(sec get pg-staging)@db1/app"
+sec cp pg-staging                          # в буфер, очистка через 30 с
+sec env -- ./gradlew bootRun               # подставить VAR=имя из .secrets в окружение команды
+sec ls ssh/                                # список по префиксу, без секретов
+sec                                        # fzf: Enter в буфер, Ctrl-O вывести, Ctrl-D удалить
+sec export                                 # dev-secrets-ДАТА.age (age -p); passphrase в Passwords
+sec import dev-secrets-ДАТА.age            # на новой машине после sec init
+```
+
+Имена вида `ssh/id_work`, `k8s/prod` группируются по префиксу в `sec ls` и в `sec get <Tab>`.
+Keychain блокируется при сне и после часа простоя; тогда macOS покажет диалог пароля.
+Записи видны и редактируются в Keychain Access.app (keychain `dev`).
+
+Переезд: либо скопировать файл `dev.keychain-db` и выполнить `sec init --attach`,
+либо `sec export` → `sec init && sec import FILE.age`. Подробности: `sec help`, `sec help add`.
+
+Что не даёт: Touch ID на каждое обращение и защиту от процессов, запущенных от вашего
+пользователя, пока keychain разблокирован. Нужно это — 1Password с `op` и SSH-агентом.

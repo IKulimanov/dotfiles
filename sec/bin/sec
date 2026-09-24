@@ -1,0 +1,700 @@
+#!/usr/bin/env zsh
+# sec — dev-секреты (пароли БД, токены, ключи, конфиги) в отдельном macOS Keychain.
+# Тонкая обёртка над security(1): короткие команды, автодополнение, экспорт для переезда.
+# Справка: sec help, по команде: sec help add.
+emulate -L zsh
+setopt pipefail extended_glob
+zmodload zsh/datetime zsh/stat
+
+SEC_KEYCHAIN=${SEC_KEYCHAIN:-$HOME/Library/Keychains/dev.keychain-db}
+SEC_ACCOUNT=${SEC_ACCOUNT:-$USER}
+SEC_CLIP_TTL=${SEC_CLIP_TTL:-30}          # секунд до очистки буфера после sec cp
+SEC_LOCK_TIMEOUT=${SEC_LOCK_TIMEOUT:-3600} # автоблокировка keychain при простое
+SEC_CACHE=${XDG_CACHE_HOME:-$HOME/.cache}/sec
+# security -i читает команду строкой с буфером около 4 КБ. Более длинный hex
+# передаём через argv: секрет на миг виден в ps, зато влезают ключи и kubeconfig.
+SEC_INLINE_MAX=3000
+
+KC=$SEC_KEYCHAIN
+typeset -A C
+if [[ -t 1 && -n $TERM ]] && (( $+commands[tput] )); then
+  C=(b "$(tput bold 2>/dev/null)" dim "$(tput dim 2>/dev/null)" cyan "$(tput setaf 6 2>/dev/null)" \
+     green "$(tput setaf 2 2>/dev/null)" yellow "$(tput setaf 3 2>/dev/null)" red "$(tput setaf 1 2>/dev/null)" \
+     off "$(tput sgr0 2>/dev/null)")
+else
+  C=(b '' dim '' cyan '' green '' yellow '' red '' off '')
+fi
+
+# ---------- утилиты ----------
+
+die() { print -r -- "sec: $1" >&2; exit ${2:-1} }
+info() { print -r -- "$1" }
+
+need_keychain() {
+  [[ -f $KC ]] || die "keychain $KC не найден, выполните: sec init"
+}
+
+# Экранирование аргумента для строки security -i: двойные кавычки, \\ и \".
+q() { local s=${1//\\/\\\\}; s=${s//\"/\\\"}; print -rn -- "\"$s\"" }
+
+# Перевести код ошибки security в понятное сообщение.
+explain_security() {
+  case $1 in
+    36) die "keychain заблокирован, а диалог пароля недоступен; выполните: sec unlock" ;;
+    44) die "запись $2 не найдена" ;;
+    45) die "запись $2 уже есть, для замены добавьте -u" ;;
+    *)  die "security завершился с кодом $1" $1 ;;
+  esac
+}
+
+item_exists() { security find-generic-password -s "$1" "$KC" >/dev/null 2>&1 }
+
+# Прочитать данные записи ровно как байты, без добавленного перевода строки.
+# security -g печатает данные в hex, если есть не-ASCII или управляющие символы,
+# иначе строкой в кавычках; по этому признаку выбираем способ декодирования.
+read_raw() {
+  local name=$1 g rc
+  g=$(security find-generic-password -s "$name" -g "$KC" 2>&1 >/dev/null); rc=$?
+  (( rc == 0 )) || return $rc
+  if [[ $g == "password: 0x"* ]]; then
+    local hx=${g#password: 0x}; hx=${hx%%[[:space:]]*}
+    print -rn -- "$hx" | xxd -r -p
+  else
+    local w
+    w=$(security find-generic-password -s "$name" -w "$KC" 2>/dev/null) || return $?
+    print -rn -- "$w"
+  fi
+}
+
+# Записать секрет. Данные — hex из stdin. $5=1 означает замену существующей записи.
+write_item() {
+  local name=$1 kind=$2 account=$3 note=$4 update=$5 hx rc
+  hx=$(xxd -p | tr -d '\n')
+  local -a args=(add-generic-password -a "$account" -s "$name" -l "$name" -D "$kind")
+  [[ -n $note ]] && args+=(-j "$note")
+  (( update )) && args+=(-U)
+  if (( ${#hx} <= SEC_INLINE_MAX )); then
+    local line="add-generic-password -a $(q "$account") -s $(q "$name") -l $(q "$name") -D $(q "$kind")"
+    [[ -n $note ]] && line+=" -j $(q "$note")"
+    (( update )) && line+=" -U"
+    line+=" -X $hx $(q "$KC")"
+    print -r -- "$line" | security -i >/dev/null 2>&1; rc=$?
+  else
+    security "${args[@]}" -X "$hx" "$KC" >/dev/null 2>&1; rc=$?
+  fi
+  (( rc == 0 )) || explain_security $rc "$name"
+  rm -f "$SEC_CACHE/names"
+}
+
+# Список записей в TSV: имя, тип, аккаунт, заметка, изменено, создано.
+# dump-keychain без -d не показывает данные и не спрашивает подтверждений.
+list_tsv() {
+  need_keychain
+  security dump-keychain "$KC" 2>/dev/null | LC_ALL=C awk '
+    BEGIN { for (i = 0; i < 256; i++) hex[sprintf("%02X", i)] = sprintf("%c", i) }
+    function val(s,  h, out, i) {
+      sub(/^[^=]*=/, "", s)
+      if (s == "<NULL>") return ""
+      if (substr(s, 1, 2) == "0x") {
+        h = s; sub(/[ \t].*$/, "", h); h = substr(h, 3)
+        out = ""
+        for (i = 1; i <= length(h); i += 2) out = out hex[substr(h, i, 2)]
+        return out
+      }
+      sub(/^"/, "", s); sub(/"$/, "", s)
+      return s
+    }
+    function ts(s) { s = val(s); gsub(/[^0-9]/, "", s); return substr(s, 1, 14) }
+    function flush() {
+      if (cls == "genp" && name != "")
+        printf "%s\t%s\t%s\t%s\t%s\t%s\n", name, kind, acct, note, mdat, cdat
+      cls = ""; name = ""; kind = ""; acct = ""; note = ""; mdat = ""; cdat = ""
+    }
+    /^keychain: / { flush(); next }
+    /^class: /    { cls = $0; sub(/^class: "/, "", cls); sub(/"$/, "", cls); next }
+    /^ *"svce"<blob>=/ { name = val($0); next }
+    /^ *"desc"<blob>=/ { kind = val($0); next }
+    /^ *"acct"<blob>=/ { acct = val($0); next }
+    /^ *"icmt"<blob>=/ { note = val($0); next }
+    /^ *"mdat"<timedate>=/ { mdat = ts($0); next }
+    /^ *"cdat"<timedate>=/ { cdat = ts($0); next }
+    END { flush() }
+  ' | sort -t $'\t' -k1,1
+}
+
+# Время из keychain (UTC, YYYYMMDDhhmmss) в локальное "YYYY-MM-DD hh:mm".
+fmt_time() {
+  local e
+  [[ -n $1 ]] || { print -rn -- "-"; return }
+  TZ=UTC strftime -r -s e "%Y%m%d%H%M%S" "$1" 2>/dev/null || { print -rn -- "$1"; return }
+  strftime "%Y-%m-%d %H:%M" "$e"
+}
+
+names_cached() {
+  local f=$SEC_CACHE/names now
+  mkdir -p "$SEC_CACHE"
+  if [[ -f $f ]]; then
+    zstat -A mt +mtime "$f"
+    now=$EPOCHSECONDS
+    (( now - mt[1] < 60 )) && { cat "$f"; return }
+  fi
+  list_tsv | cut -f1 | tee "$f"
+}
+
+confirm() {
+  local answer
+  [[ -t 0 ]] || return 1
+  read -r "answer?$1 [y/N] "
+  [[ $answer == [yYдД]* ]]
+}
+
+# ---------- команды ----------
+
+cmd_init() {
+  local attach=1 only_attach=0 pw pw2
+  while (( $# )); do
+    case $1 in
+      --attach) only_attach=1 ;;
+      --no-attach) attach=0 ;;
+      -h|--help) help_cmd init; return ;;
+      *) die "init: неизвестный аргумент $1" 2 ;;
+    esac
+    shift
+  done
+  if (( only_attach )); then
+    need_keychain
+    attach_keychain
+    info "keychain подключён: $KC"
+    return
+  fi
+  [[ -f $KC ]] && die "keychain уже существует: $KC (подключить существующий: sec init --attach)"
+  if [[ -n ${SEC_PASSWORD:-} ]]; then
+    print -r -- "create-keychain -p $(q "$SEC_PASSWORD") $(q "$KC")" | security -i \
+      || die "не удалось создать keychain"
+  else
+    [[ -t 0 ]] || die "нужен терминал, чтобы задать пароль keychain"
+    print "Пароль для нового keychain (он же понадобится после блокировки):"
+    read -rs "pw?Пароль: "; print
+    read -rs "pw2?Ещё раз: "; print
+    [[ $pw == $pw2 ]] || die "пароли не совпадают"
+    [[ -n $pw ]] || die "пустой пароль недопустим"
+    print -r -- "create-keychain -p $(q "$pw") $(q "$KC")" | security -i \
+      || die "не удалось создать keychain"
+  fi
+  # -l: блокировать при сне, -u -t: блокировать после простоя
+  security set-keychain-settings -l -u -t "$SEC_LOCK_TIMEOUT" "$KC"
+  (( attach )) && attach_keychain
+  info "создан keychain: $KC"
+  info "автоблокировка: при сне и после $SEC_LOCK_TIMEOUT с простоя"
+}
+
+# Добавить keychain в список поиска, чтобы его видел Keychain Access.app.
+attach_keychain() {
+  local -a current
+  current=(${(f)"$(security list-keychains -d user | sed 's/^ *"//; s/"$//')"})
+  (( ${current[(Ie)$KC]} )) && return
+  security list-keychains -d user -s "${current[@]}" "$KC"
+}
+
+cmd_add() {
+  local -A opt
+  zparseopts -D -E -A opt -- a: n: f: u -update h -help || die "add: неверные аргументы" 2
+  (( $+opt[-h] + $+opt[--help] )) && { help_cmd add; return }
+  local name=$1
+  [[ -n $name ]] || die "add: укажите имя записи (см. sec help add)" 2
+  [[ $name == -* ]] && die "add: имя не может начинаться с дефиса" 2
+  need_keychain
+  local account=${opt[-a]:-$SEC_ACCOUNT} note=${opt[-n]:-} update=0
+  (( $+opt[-u] + $+opt[--update] )) && update=1
+  (( update )) || ! item_exists "$name" || die "запись $name уже есть, для замены добавьте -u"
+
+  if (( $+opt[-f] )); then
+    local file=$opt[-f]
+    [[ -r $file ]] || die "файл не читается: $file"
+    write_item "$name" file "$account" "$note" $update < "$file"
+  else
+    local secret secret2
+    if [[ -t 0 ]]; then
+      read -rs "secret?Секрет для $name: "; print >&2
+      read -rs "secret2?Ещё раз: "; print >&2
+      [[ $secret == $secret2 ]] || die "значения не совпадают"
+    else
+      secret=$(cat)
+    fi
+    [[ -n $secret ]] || die "пустой секрет не сохраняю"
+    print -rn -- "$secret" | write_item "$name" password "$account" "$note" $update
+  fi
+  info "сохранено: $name"
+}
+
+cmd_get() {
+  [[ $1 == -h || $1 == --help ]] && { help_cmd get; return }
+  local name=$1
+  [[ -n $name ]] || die "get: укажите имя записи" 2
+  need_keychain
+  local data rc
+  data=$(read_raw "$name" && print -n .); rc=$?   # точка защищает переводы строк в конце
+  (( rc == 0 )) || explain_security $rc "$name"
+  print -r -- "${data%.}"
+}
+
+cmd_cp() {
+  [[ $1 == -h || $1 == --help ]] && { help_cmd cp; return }
+  local name=$1
+  [[ -n $name ]] || die "cp: укажите имя записи" 2
+  need_keychain
+  (( $+commands[pbcopy] )) || die "pbcopy не найден"
+  local data rc
+  data=$(read_raw "$name" && print -n .); rc=$?
+  (( rc == 0 )) || explain_security $rc "$name"
+  data=${data%.}
+  print -rn -- "$data" | pbcopy
+  # очищаем буфер, только если там всё ещё наш секрет
+  ( sleep "$SEC_CLIP_TTL"; [[ "$(pbpaste)" == "$data" ]] && pbcopy </dev/null ) &>/dev/null &!
+  info "скопировано: $name (буфер очистится через $SEC_CLIP_TTL с)"
+}
+
+cmd_out() {
+  local -A opt
+  zparseopts -D -E -A opt -- f -force h -help || die "out: неверные аргументы" 2
+  (( $+opt[-h] + $+opt[--help] )) && { help_cmd out; return }
+  local name=$1 dest=$2   # не path: в zsh это синоним PATH
+  [[ -n $name && -n $dest ]] || die "out: нужны имя записи и путь к файлу" 2
+  need_keychain
+  if [[ -e $dest ]] && (( ! $+opt[-f] && ! $+opt[--force] )); then
+    die "файл уже есть: $dest (перезаписать: -f)"
+  fi
+  local rc tmp="$dest.sec-tmp.$$"
+  ( umask 077; read_raw "$name" > "$tmp" ); rc=$?
+  (( rc == 0 )) || { rm -f "$tmp"; explain_security $rc "$name" }
+  chmod 600 "$tmp" && mv -f "$tmp" "$dest"
+  info "записано: $dest"
+}
+
+cmd_ls() {
+  local -A opt
+  zparseopts -D -E -A opt -- l -tsv -pretty -no-pager h -help || die "ls: неверные аргументы" 2
+  (( $+opt[-h] + $+opt[--help] )) && { help_cmd ls; return }
+  local prefix=${1:-} long=$+opt[-l]
+  local -a rows
+  rows=(${(f)"$(list_tsv)"})
+  [[ -n $prefix ]] && rows=(${(M)rows:#${(b)prefix}*})
+  if (( ${#rows} == 0 )); then
+    [[ -n $prefix ]] && info "нет записей с префиксом $prefix" || info "записей нет; добавить: sec add NAME"
+    return
+  fi
+  if (( $+opt[--tsv] )) || { (( ! $+opt[--pretty] )) && [[ ! -t 1 ]]; }; then
+    print -rl -- "${rows[@]}"
+    return
+  fi
+  local out
+  out=$(render_pretty "$prefix" $long "${rows[@]}")
+  local lines=${#${(f)out}}
+  if [[ -t 1 ]] && (( ! $+opt[--no-pager] )) && (( lines > ${LINES:-$(tput lines)} - 2 )); then
+    print -r -- "$out" | ${PAGER:-less -R -F -X}
+  else
+    print -r -- "$out"
+  fi
+}
+
+# Таблица с группами по первому сегменту имени. $1 префикс, $2 длинный формат, дальше строки TSV.
+render_pretty() {
+  local prefix=$1 long=$2; shift 2
+  local -a rows=("$@") f
+  local -A groups
+  local -a order
+  local r g w_name=4 w_kind=3 w_acct=7
+  for r in "${rows[@]}"; do
+    f=("${(@ps:\t:)r}")
+    (( ${#f[1]} > w_name )) && w_name=${#f[1]}
+    (( ${#f[2]} > w_kind )) && w_kind=${#f[2]}
+    (( ${#f[3]} > w_acct )) && w_acct=${#f[3]}
+    if [[ -z $prefix && $f[1] == */* ]]; then g=${f[1]%%/*}/; else g=прочее; fi
+    (( ${+groups[$g]} )) || { groups[$g]=""; order+=("$g") }
+    groups[$g]+="$r"$'\n'
+  done
+  # «прочее» всегда в конце
+  if [[ -z $prefix ]] && (( ${+groups[прочее]} )); then order=(${order:#прочее} прочее); fi
+  local hdr
+  hdr=$(printf "%-${w_name}s  %-${w_kind}s  %-${w_acct}s  %-16s  %s" имя тип аккаунт изменено заметка)
+  (( long )) && hdr+="  создано"
+  print -r -- "${C[dim]}$hdr${C[off]}"
+  for g in "${order[@]}"; do
+    local -a grows=(${(f)groups[$g]})
+    if [[ -z $prefix ]]; then
+      print -r -- "${C[b]}${C[cyan]}$g${C[off]} ${C[dim]}(${#grows})${C[off]}"
+    fi
+    for r in "${grows[@]}"; do
+      f=("${(@ps:\t:)r}")
+      local kc=$C[green]; [[ $f[2] == file ]] && kc=$C[yellow]
+      printf "%-${w_name}s  ${kc}%-${w_kind}s${C[off]}  %-${w_acct}s  %-16s  %s" \
+        "$f[1]" "$f[2]" "$f[3]" "$(fmt_time "$f[5]")" "$f[4]"
+      (( long )) && printf "  %s" "$(fmt_time "$f[6]")"
+      print
+    done
+  done
+}
+
+cmd_show() {
+  [[ $1 == -h || $1 == --help ]] && { help_cmd show; return }
+  local name=$1
+  [[ -n $name ]] || die "show: укажите имя записи" 2
+  local r
+  local -a rows=(${(f)"$(list_tsv)"})
+  r=${${(M)rows:#${(b)name}$'\t'*}[1]}
+  [[ -n $r ]] || die "запись $name не найдена"
+  local -a f=("${(@ps:\t:)r}")
+  printf "%s%-10s%s %s\n" "$C[dim]" имя "$C[off]" "$f[1]"
+  printf "%s%-10s%s %s\n" "$C[dim]" тип "$C[off]" "$f[2]"
+  printf "%s%-10s%s %s\n" "$C[dim]" аккаунт "$C[off]" "$f[3]"
+  printf "%s%-10s%s %s\n" "$C[dim]" заметка "$C[off]" "${f[4]:--}"
+  printf "%s%-10s%s %s\n" "$C[dim]" изменено "$C[off]" "$(fmt_time "$f[5]")"
+  printf "%s%-10s%s %s\n" "$C[dim]" создано "$C[off]" "$(fmt_time "$f[6]")"
+  printf "%s%-10s%s %s\n" "$C[dim]" keychain "$C[off]" "$KC"
+}
+
+cmd_rm() {
+  local -A opt
+  zparseopts -D -E -A opt -- y -yes h -help || die "rm: неверные аргументы" 2
+  (( $+opt[-h] + $+opt[--help] )) && { help_cmd rm; return }
+  local name=$1
+  [[ -n $name ]] || die "rm: укажите имя записи" 2
+  need_keychain
+  item_exists "$name" || die "запись $name не найдена"
+  if (( ! $+opt[-y] && ! $+opt[--yes] )); then
+    confirm "Удалить запись $name?" || { info "отменено"; return 1 }
+  fi
+  security delete-generic-password -s "$name" "$KC" >/dev/null 2>&1 || die "не удалось удалить $name"
+  rm -f "$SEC_CACHE/names"
+  info "удалено: $name"
+}
+
+cmd_env() {
+  local -A opt
+  zparseopts -D -E -A opt -- f: h -help || die "env: неверные аргументы" 2
+  (( $+opt[-h] + $+opt[--help] )) && { help_cmd env; return }
+  [[ $1 == -- ]] && shift
+  (( $# )) || die "env: укажите команду после --" 2
+  need_keychain
+  local file=${opt[-f]:-.secrets}
+  [[ -r $file ]] || die "файл со списком переменных не найден: $file"
+  local -a assigns
+  local line var name val rc
+  while IFS= read -r line || [[ -n $line ]]; do
+    line=${line%%\#*}; line=${line## ##}; line=${line%% ##}
+    [[ -z $line ]] && continue
+    [[ $line == *=* ]] || die "env: строка без '=': $line"
+    var=${line%%=*}; name=${line#*=}
+    val=$(read_raw "$name" && print -n .); rc=$?
+    (( rc == 0 )) || explain_security $rc "$name"
+    assigns+=("$var=${val%.}")
+  done < "$file"
+  exec env "${assigns[@]}" "$@"
+}
+
+cmd_export() {
+  local -A opt
+  zparseopts -D -E -A opt -- o: -json h -help || die "export: неверные аргументы" 2
+  (( $+opt[-h] + $+opt[--help] )) && { help_cmd export; return }
+  need_keychain
+  (( $+opt[--json] )) || (( $+commands[age] )) || die "нужен age: brew install age"
+  local -a rows
+  rows=(${(f)"$(list_tsv)"})
+  (( ${#rows} )) || die "экспортировать нечего"
+  local r f json items="" rc
+  for r in "${rows[@]}"; do
+    f=("${(@ps:\t:)r}")
+    local b64
+    b64=$(read_raw "$f[1]" | base64); rc=$?
+    (( rc == 0 )) || explain_security $rc "$f[1]"
+    items+=$(jq -nc --arg n "$f[1]" --arg k "$f[2]" --arg a "$f[3]" --arg c "$f[4]" --arg d "$b64" \
+      '{name:$n, kind:$k, account:$a, comment:$c, data_b64:$d}')$'\n'
+  done
+  json=$(print -rn -- "$items" | jq -s --arg at "$(strftime "%Y-%m-%dT%H:%M:%S%z" $EPOCHSECONDS)" \
+    '{version:1, exported_at:$at, items:.}')
+  if (( $+opt[--json] )); then
+    print -r -- "$json"
+    return
+  fi
+  local out=${opt[-o]:-dev-secrets-$(strftime "%Y-%m-%d" $EPOCHSECONDS).age}
+  [[ -e $out ]] && die "файл уже есть: $out"
+  if [[ -n ${SEC_AGE_RECIPIENT:-} ]]; then
+    print -rn -- "$json" | age -r "$SEC_AGE_RECIPIENT" -o "$out" || die "age не смог зашифровать"
+  else
+    [[ -t 0 ]] || die "age спросит passphrase, нужен терминал (или SEC_AGE_RECIPIENT)"
+    print -rn -- "$json" | age -p -o "$out" || die "age не смог зашифровать"
+  fi
+  chmod 600 "$out"
+  info "экспортировано записей: ${#rows} → $out"
+}
+
+cmd_import() {
+  [[ $1 == -h || $1 == --help ]] && { help_cmd import; return }
+  local file=$1
+  [[ -r $file ]] || die "import: укажите файл экспорта" 2
+  need_keychain
+  local json
+  if [[ $file == *.json ]]; then
+    json=$(<"$file")
+  else
+    (( $+commands[age] )) || die "нужен age: brew install age"
+    if [[ -n ${SEC_AGE_IDENTITY:-} ]]; then
+      json=$(age -d -i "$SEC_AGE_IDENTITY" "$file") || die "age не смог расшифровать"
+    else
+      json=$(age -d "$file") || die "age не смог расшифровать"
+    fi
+  fi
+  local count=0 item
+  for item in ${(f)"$(print -rn -- "$json" | jq -c '.items[]')"}; do
+    local name kind account comment
+    name=$(print -rn -- "$item" | jq -r .name)
+    kind=$(print -rn -- "$item" | jq -r .kind)
+    account=$(print -rn -- "$item" | jq -r .account)
+    comment=$(print -rn -- "$item" | jq -r .comment)
+    print -rn -- "$item" | jq -r .data_b64 | base64 -d | write_item "$name" "$kind" "$account" "$comment" 1
+    count=$((count + 1))
+  done
+  info "импортировано записей: $count"
+}
+
+cmd_names() {
+  local prefix=${1:-}
+  need_keychain
+  local -a names=(${(f)"$(names_cached)"})
+  [[ -n $prefix ]] && names=(${(M)names:#${(b)prefix}*})
+  (( ${#names} )) && print -rl -- "${names[@]}"
+  return 0
+}
+
+cmd_pick() {
+  [[ $1 == -h || $1 == --help ]] && { help_cmd pick; return }
+  (( $+commands[fzf] )) || die "нужен fzf: brew install fzf"
+  need_keychain
+  local prefix=${1:-} sel key name self=$0
+  [[ $0 == */* ]] && self=${0:A}
+  local -a rows=(${(f)"$(list_tsv)"})
+  [[ -n $prefix ]] && rows=(${(M)rows:#${(b)prefix}*})
+  sel=$(print -rl -- "${rows[@]}" \
+    | fzf --delimiter=$'\t' --with-nth=1,2 --nth=1 \
+          --header='Enter: в буфер  Ctrl-O: вывести  Ctrl-E: изменить  Ctrl-D: удалить  Ctrl-R: обновить' \
+          --preview="$self show {1}" --preview-window=right:45% \
+          --bind="ctrl-r:reload($self ls --tsv)" \
+          --expect=ctrl-o,ctrl-e,ctrl-d) || return 1
+  key=${sel%%$'\n'*}; name=${${sel#*$'\n'}%%$'\t'*}
+  [[ -n $name ]] || return 1
+  case $key in
+    ctrl-o) cmd_get "$name" ;;
+    ctrl-e) cmd_add -u "$name" ;;
+    ctrl-d) cmd_rm "$name" ;;
+    *)      cmd_cp "$name" ;;
+  esac
+}
+
+cmd_lock() {
+  need_keychain
+  security lock-keychain "$KC" && info "заблокировано: $KC"
+}
+
+cmd_unlock() {
+  need_keychain
+  if [[ -n ${SEC_PASSWORD:-} ]]; then
+    print -r -- "unlock-keychain -p $(q "$SEC_PASSWORD") $(q "$KC")" | security -i || die "неверный пароль"
+  else
+    security unlock-keychain "$KC" || die "неверный пароль"
+  fi
+  info "разблокировано: $KC"
+}
+
+cmd_doctor() {
+  local ok="${C[green]}ok${C[off]}" bad="${C[red]}нет${C[off]}"
+  if [[ -f $KC ]]; then
+    print -r -- "$ok  keychain: $KC"
+    print -r -- "    $(security show-keychain-info "$KC" 2>&1 | sed 's/^Keychain "[^"]*" //')"
+    if security list-keychains -d user | grep -qF "$KC"; then
+      print -r -- "$ok  Keychain Access видит keychain (в списке поиска)"
+    else
+      print -r -- "$bad Keychain Access не видит keychain; подключить: sec init --attach"
+    fi
+    print -r -- "$ok  записей: $(list_tsv | wc -l | tr -d ' ')"
+  else
+    print -r -- "$bad keychain: $KC; создать: sec init"
+  fi
+  (( $+commands[age] )) && print -r -- "$ok  age (экспорт/импорт)" || print -r -- "$bad age; brew install age"
+  (( $+commands[fzf] )) && print -r -- "$ok  fzf (sec pick)" || print -r -- "$bad fzf; brew install fzf"
+  (( $+commands[jq] )) && print -r -- "$ok  jq (экспорт)" || print -r -- "$bad jq; brew install jq"
+}
+
+# ---------- справка ----------
+
+cmd_help() {
+  if [[ -n $1 ]]; then help_cmd "$1"; return; fi
+  cat <<EOF
+${C[b]}sec${C[off]} — dev-секреты в отдельном macOS Keychain ($KC)
+
+${C[b]}Использование:${C[off]} sec КОМАНДА [аргументы]     подробнее: sec help КОМАНДА
+
+${C[cyan]}Хранение${C[off]}
+  add NAME [-a ACC] [-n NOTE] [-f FILE] [-u]   сохранить секрет (скрытый ввод, stdin или файл)
+  rm NAME [-y]                                 удалить запись
+  ls [PREFIX] [-l] [--tsv]                     список записей (без секретов), фильтр по префиксу
+  show NAME                                    метаданные записи
+
+${C[cyan]}Работа с секретами${C[off]}
+  get NAME                                     секрет в stdout: \$(sec get pg-staging)
+  cp NAME                                      секрет в буфер, очистка через $SEC_CLIP_TTL с
+  out NAME PATH [-f]                           восстановить файл на диск (права 600)
+  env [-f .secrets] -- CMD                     подставить VAR=name из файла в окружение команды
+  pick [PREFIX]  (или просто sec)              выбрать через fzf: Enter в буфер, Ctrl-O вывести
+
+${C[cyan]}Обслуживание${C[off]}
+  init [--attach]                              создать keychain (или подключить существующий)
+  lock / unlock                                заблокировать / разблокировать
+  export [-o FILE] [--json]                    все записи в файл, зашифрованный age
+  import FILE.age                              загрузить записи из экспорта
+  doctor                                       проверить настройку
+
+Имена вида ssh/id_work, k8s/prod группируются по префиксу в ls и автодополнении.
+EOF
+}
+
+help_cmd() {
+  case $1 in
+    add) cat <<EOF
+sec add NAME [-a ACCOUNT] [-n NOTE] [-f FILE] [-u]
+
+Сохранить секрет под именем NAME. Без -f значение читается скрытым вводом
+(в терминале) или из stdin (в pipe). С -f сохраняется файл целиком, тип file.
+  -a  аккаунт/логин, по умолчанию \$USER
+  -n  заметка: хост, порт, для чего
+  -u  заменить существующую запись
+
+Примеры:
+  sec add pg-staging -a app -n "db1.internal:5432"
+  printf '%s' 'token' | sec add kafka/staging-token
+  sec add -f ~/.kube/config k8s/prod
+  sec add -f ~/.ssh/id_work ssh/id_work -n "рабочий ключ, passphrase в ssh/id_work.pass"
+EOF
+    ;;
+    get) cat <<EOF
+sec get NAME
+
+Печатает секрет в stdout с переводом строки в конце. Для подстановки в команду:
+  psql "postgres://app:\$(sec get pg-staging)@db1/app"
+  export KAFKA_TOKEN=\$(sec get kafka/staging-token)
+EOF
+    ;;
+    cp) cat <<EOF
+sec cp NAME
+
+Кладёт секрет в буфер обмена и очищает его через $SEC_CLIP_TTL с, если там всё ещё
+он (SEC_CLIP_TTL меняет интервал). Помните про Universal Clipboard: буфер
+может уйти на iPhone рядом.
+EOF
+    ;;
+    out) cat <<EOF
+sec out NAME PATH [-f]
+
+Записывает содержимое записи в файл с правами 600. Существующий файл
+не трогает без -f. Для записей типа file: ключи, kubeconfig, сертификаты.
+  sec out ssh/id_work ~/.ssh/id_work
+EOF
+    ;;
+    ls) cat <<EOF
+sec ls [PREFIX] [-l] [--tsv] [--pretty] [--no-pager]
+
+Список записей без секретов. Без префикса группирует по первому сегменту
+имени (ssh/, k8s/), остальное в «прочее». В pipe печатает TSV.
+  -l          добавить дату создания
+  --tsv       всегда TSV (имя, тип, аккаунт, заметка, изменено, создано)
+  --pretty    таблица даже в pipe
+  --no-pager  не звать \$PAGER на длинном списке
+Примеры:
+  sec ls ssh/
+  sec ls | cut -f1
+EOF
+    ;;
+    show) print "sec show NAME\n\nМетаданные записи: тип, аккаунт, заметка, даты. Секрет не показывает." ;;
+    rm) print "sec rm NAME [-y]\n\nУдалить запись. -y без вопроса." ;;
+    env) cat <<EOF
+sec env [-f FILE] -- КОМАНДА
+
+Читает файл (по умолчанию .secrets в текущем каталоге) со строками VAR=имя-записи,
+подставляет значения в окружение и запускает команду. В шелл ничего не экспортирует.
+Файл .secrets можно коммитить: секретов в нём нет.
+
+  # .secrets
+  PGPASSWORD=pg-staging
+  KAFKA_TOKEN=kafka/staging-token
+
+  sec env -- ./gradlew bootRun
+  sec env -f ops/.secrets -- kubectl get pods
+EOF
+    ;;
+    export) cat <<EOF
+sec export [-o FILE] [--json]
+
+Все записи в JSON, зашифрованный age passphrase-режимом (age -p).
+По умолчанию файл dev-secrets-ГГГГ-ММ-ДД.age в текущем каталоге.
+Passphrase храните в Apple Passwords, сам файл можно держать в iCloud Drive.
+  --json  печатать JSON открытым текстом в stdout (для миграции в другой менеджер)
+Для скриптов: SEC_AGE_RECIPIENT=age1... шифрует на ключ вместо passphrase.
+EOF
+    ;;
+    import) cat <<EOF
+sec import FILE.age
+
+Расшифровать экспорт и загрузить записи в текущий keychain (существующие заменяются).
+Файл с расширением .json читается без расшифровки.
+Переезд: sec export на старой машине, sec init && sec import FILE.age на новой.
+Для скриптов: SEC_AGE_IDENTITY=путь-к-ключу вместо passphrase.
+EOF
+    ;;
+    init) cat <<EOF
+sec init [--attach] [--no-attach]
+
+Создать keychain $KC, задать автоблокировку (при сне и после
+$SEC_LOCK_TIMEOUT с простоя) и подключить его к Keychain Access.
+  --attach     только подключить уже существующий файл (после копирования с другого Mac)
+  --no-attach  создать, но не подключать к списку поиска
+Переменные: SEC_KEYCHAIN (путь), SEC_LOCK_TIMEOUT (секунды).
+EOF
+    ;;
+    pick) cat <<EOF
+sec pick [PREFIX]   (или просто sec)
+
+Интерактивный выбор через fzf. Справа метаданные записи.
+  Enter   в буфер обмена       Ctrl-O  вывести секрет
+  Ctrl-E  заменить значение    Ctrl-D  удалить
+  Ctrl-R  обновить список
+EOF
+    ;;
+    lock|unlock|doctor|names) print "sec $1\n\nСм. sec help." ;;
+    *) die "нет такой команды: $1, см. sec help" 2 ;;
+  esac
+}
+
+# ---------- точка входа ----------
+
+cmd=${1:-}
+(( $# )) && shift
+case $cmd in
+  "")           if [[ -t 0 && -t 1 ]]; then cmd_pick; else cmd_help; fi ;;
+  init)         cmd_init "$@" ;;
+  add)          cmd_add "$@" ;;
+  get)          cmd_get "$@" ;;
+  cp)           cmd_cp "$@" ;;
+  out)          cmd_out "$@" ;;
+  ls)           cmd_ls "$@" ;;
+  show)         cmd_show "$@" ;;
+  rm)           cmd_rm "$@" ;;
+  env)          cmd_env "$@" ;;
+  export)       cmd_export "$@" ;;
+  import)       cmd_import "$@" ;;
+  names)        cmd_names "$@" ;;
+  pick)         cmd_pick "$@" ;;
+  lock)         cmd_lock ;;
+  unlock)       cmd_unlock ;;
+  doctor)       cmd_doctor ;;
+  help|-h|--help) cmd_help "$@" ;;
+  *)            die "нет такой команды: $cmd, см. sec help" 2 ;;
+esac

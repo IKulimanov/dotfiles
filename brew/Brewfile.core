@@ -34,6 +34,7 @@ brew "lazygit"      # TUI для git: стейджинг, ветки, rebase, к
 brew "tig"          # история, blame и ветки в консоли, конфиг в tig/
 brew "shellcheck"   # проверка shell-скриптов (make lint)
 brew "direnv"       # авто-загрузка .envrc
+brew "age"          # шифрование экспорта sec (dev-секреты в Keychain, пакет sec/)
 
 # ---------- kubernetes ----------
 # Доступ к кластерам — через корпоративный Keycloak (OIDC), поэтому
